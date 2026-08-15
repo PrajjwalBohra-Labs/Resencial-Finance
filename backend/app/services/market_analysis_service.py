@@ -3,6 +3,11 @@
     calculate_percentage_return,
     calculate_price_summary,
 )
+from backend.app.analytics.risk import (
+    calculate_annualised_volatility,
+    calculate_cagr,
+    calculate_max_drawdown,
+)
 from backend.app.schemas.market import (
     HistoricalPrice,
     ReturnAnalysis,
@@ -19,5 +24,8 @@ class MarketAnalysisService:
         return ReturnAnalysis(
             absolute_return=calculate_absolute_return(prices),
             percentage_return=calculate_percentage_return(prices),
+            cagr=calculate_cagr(prices),
+            maximum_drawdown=calculate_max_drawdown(prices),
+            annualised_volatility=calculate_annualised_volatility(prices),
             price_summary=calculate_price_summary(prices),
         )

@@ -1,11 +1,11 @@
 ﻿import asyncio
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 
 import yfinance as yf
 
 from backend.app.data.providers.market import MarketDataProvider
 from backend.app.instruments import Equity
-from backend.app.schemas.market import HistoricalPrice, Quote
+from backend.app.schemas import DataFreshness, HistoricalPrice, Quote, Source
 
 
 class YahooFinanceMarketProvider(MarketDataProvider):
@@ -16,7 +16,10 @@ class YahooFinanceMarketProvider(MarketDataProvider):
         return "yahoo_finance"
 
     @staticmethod
-    def _to_yahoo_symbol(symbol: str, exchange: str | None = None) -> str:
+    def _to_yahoo_symbol(
+        symbol: str,
+        exchange: str | None = None,
+    ) -> str:
         normalized_symbol = symbol.strip().upper()
 
         if "." in normalized_symbol:
@@ -32,6 +35,18 @@ class YahooFinanceMarketProvider(MarketDataProvider):
                 return f"{normalized_symbol}.BO"
 
         return normalized_symbol
+
+    @staticmethod
+    def _source() -> Source:
+        return Source(
+            name="Yahoo Finance",
+            type="market_data",
+            provider="yahoo_finance",
+        )
+
+    @staticmethod
+    def _retrieved_at() -> datetime:
+        return datetime.now(timezone.utc)
 
     async def get_quote(self, symbol: str) -> Quote:
         yahoo_symbol = self._to_yahoo_symbol(symbol)
@@ -59,6 +74,8 @@ class YahooFinanceMarketProvider(MarketDataProvider):
             else:
                 quote_timestamp = timestamp.to_pydatetime()
 
+            retrieved_at = self._retrieved_at()
+
             return Quote(
                 symbol=symbol.upper(),
                 provider_symbol=yahoo_symbol,
@@ -68,6 +85,12 @@ class YahooFinanceMarketProvider(MarketDataProvider):
                 low=float(latest["Low"]),
                 close=float(latest["Close"]),
                 volume=int(latest["Volume"]),
+                source=self._source(),
+                freshness=DataFreshness(
+                    observed_at=quote_timestamp,
+                    retrieved_at=retrieved_at,
+                    status="fresh",
+                ),
             )
 
         return await asyncio.to_thread(fetch)

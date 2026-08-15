@@ -2,6 +2,8 @@
 
 from pydantic import BaseModel, ConfigDict
 
+from backend.app.schemas.common import DataFreshness, Source
+
 
 class Quote(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -15,6 +17,8 @@ class Quote(BaseModel):
     low: float
     close: float
     volume: int
+    source: Source
+    freshness: DataFreshness
 
 
 class HistoricalPrice(BaseModel):
@@ -42,6 +46,9 @@ class ReturnAnalysis(BaseModel):
 
     absolute_return: float
     percentage_return: float
+    cagr: float
+    maximum_drawdown: float
+    annualised_volatility: float
     price_summary: PriceSummary
 
 
@@ -55,3 +62,5 @@ class HistoricalPricesResponse(BaseModel):
     count: int
     data: list[HistoricalPrice]
     analysis: ReturnAnalysis
+    source: Source
+    freshness: DataFreshness

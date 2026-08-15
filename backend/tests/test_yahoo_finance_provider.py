@@ -23,7 +23,10 @@ def test_bse_symbol_conversion() -> None:
 def test_existing_suffix_is_preserved() -> None:
     provider = YahooFinanceMarketProvider()
 
-    assert provider._to_yahoo_symbol("HDFCBANK.NS", "NSE") == "HDFCBANK.NS"
+    assert provider._to_yahoo_symbol(
+        "HDFCBANK.NS",
+        "NSE",
+    ) == "HDFCBANK.NS"
 
 
 @pytest.mark.asyncio
@@ -103,3 +106,8 @@ async def test_get_quote() -> None:
     assert result.close == 1915.0
     assert result.volume == 1000000
     assert isinstance(result.timestamp, datetime)
+    assert result.source.name == "Yahoo Finance"
+    assert result.source.provider == "yahoo_finance"
+    assert result.freshness.status == "fresh"
+    assert result.freshness.observed_at == result.timestamp
+    assert result.freshness.retrieved_at is not None

@@ -4,11 +4,20 @@ import pytest
 
 from backend.app.data.providers.market import MarketDataProvider
 from backend.app.instruments import Equity, InstrumentResolver
-from backend.app.schemas.market import (
+from backend.app.schemas import (
+    DataFreshness,
     HistoricalPrice,
     Quote,
+    Source,
 )
 from backend.app.services.market_service import MarketService
+
+
+TEST_SOURCE = Source(
+    name="Test Provider",
+    type="market_data",
+    provider="fake",
+)
 
 
 class FakeMarketProvider(MarketDataProvider):
@@ -17,22 +26,30 @@ class FakeMarketProvider(MarketDataProvider):
         return "fake"
 
     async def get_quote(self, symbol: str) -> Quote:
+        observed_at = datetime(
+            2026,
+            8,
+            15,
+            10,
+            0,
+            tzinfo=timezone.utc,
+        )
+
         return Quote(
             symbol=symbol,
             provider_symbol=symbol,
-            timestamp=datetime(
-                2026,
-                8,
-                15,
-                10,
-                0,
-                tzinfo=timezone.utc,
-            ),
+            timestamp=observed_at,
             open=99.0,
             high=101.0,
             low=98.0,
             close=100.0,
             volume=1000000,
+            source=TEST_SOURCE,
+            freshness=DataFreshness(
+                observed_at=observed_at,
+                retrieved_at=observed_at,
+                status="fresh",
+            ),
         )
 
     async def get_historical_prices(
@@ -98,6 +115,9 @@ async def test_market_service_get_quote() -> None:
     assert result.exchange == "NSE"
     assert result.provider_symbol == "HDFCBANK.NS"
     assert result.close == 100.0
+    assert result.source.name == "Test Provider"
+    assert result.source.provider == "fake"
+    assert result.freshness.status == "fresh"
 
 
 @pytest.mark.asyncio
@@ -114,7 +134,6 @@ async def test_market_service_get_historical_prices() -> None:
     assert len(result) == 2
     assert result[0].close == 100.0
     assert result[1].close == 105.0
-
 
 
 @pytest.mark.asyncio
@@ -145,4 +164,3 @@ async def test_market_service_get_equity() -> None:
     assert result is not None
     assert result.symbol == "HDFCBANK"
     assert result.exchange == "NSE"
-

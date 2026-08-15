@@ -1,10 +1,15 @@
-﻿from datetime import date
+﻿from datetime import date, datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from backend.app.data.providers import YahooFinanceMarketProvider
 from backend.app.instruments import InstrumentResolutionError, resolver
-from backend.app.schemas import HistoricalPricesResponse, Quote
+from backend.app.schemas import (
+    DataFreshness,
+    HistoricalPricesResponse,
+    Quote,
+    Source,
+)
 from backend.app.services.market_analysis_service import (
     MarketAnalysisService,
 )
@@ -81,6 +86,8 @@ async def get_historical_prices(
 
     analysis = analysis_service.analyse_prices(prices)
 
+    retrieved_at = datetime.now(timezone.utc)
+
     return HistoricalPricesResponse(
         symbol=symbol.upper(),
         exchange=exchange.upper(),
@@ -89,4 +96,14 @@ async def get_historical_prices(
         count=len(prices),
         data=prices,
         analysis=analysis,
+        source=Source(
+            name="Yahoo Finance",
+            type="market_data",
+            provider="yahoo_finance",
+        ),
+        freshness=DataFreshness(
+            observed_at=None,
+            retrieved_at=retrieved_at,
+            status="fresh",
+        ),
     )
