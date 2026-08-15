@@ -1,4 +1,4 @@
-﻿from datetime import datetime
+from datetime import datetime
 from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -35,3 +35,15 @@ class Evidence(BaseModel):
     exchange: str | None = None
 
     confidence: float = Field(default=1.0, ge=0.0, le=1.0)
+
+    @property
+    def source_type(self) -> str:
+        return self.evidence_type.value
+
+    @property
+    def source_name(self) -> str:
+        return self.source.name
+
+    @property
+    def url(self) -> str | None:
+        return self.source.url

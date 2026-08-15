@@ -1,4 +1,4 @@
-﻿from datetime import datetime
+from datetime import datetime
 from typing import Any, Sequence
 
 from backend.app.domain.evidence import (
@@ -38,21 +38,39 @@ def create_market_evidence(
         for price in prices
     ]
 
+    normalized_symbol = symbol.upper()
+    normalized_exchange = exchange.upper()
+
+    if len(observations) == 1:
+        observation = observations[0]
+
+        fields = [
+            f"{field.replace('_', ' ').title()}: {value}"
+            for field, value in observation.items()
+        ]
+
+        content = "; ".join(fields)
+        title = f"{normalized_symbol} market price"
+    else:
+        content = (
+            f"Historical market price observations for "
+            f"{normalized_symbol} on {normalized_exchange}.\n\n"
+            f"Observations:\n{observations}"
+        )
+
+        title = f"{normalized_symbol} market price history"
+
     return Evidence(
         evidence_type=EvidenceType.MARKET_DATA,
-        title=f"{symbol.upper()} market price history",
-        content=(
-            f"Historical market price observations for "
-            f"{symbol.upper()} on {exchange.upper()}.\n\n"
-            f"Observations:\n{observations}"
-        ),
+        title=title,
+        content=content,
         source=EvidenceSource(
             name=source_name,
             url=source_url,
             retrieved_at=retrieved_at,
             provider=provider,
         ),
-        symbol=symbol.upper(),
-        exchange=exchange.upper(),
+        symbol=normalized_symbol,
+        exchange=normalized_exchange,
         confidence=1.0,
     )
