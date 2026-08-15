@@ -175,3 +175,105 @@ async def test_assemble_market_context_rejects_invalid_date_range() -> None:
         )
 
     assert market_service.calls == []
+
+
+@pytest.mark.asyncio
+async def test_assemble_uses_request_date_range() -> None:
+    service = FakeMarketService()
+    assembler = ResearchDataAssembler(service)
+
+    request = ResearchRequest(
+        question="Analyse HDFC Bank.",
+        symbols=["HDFCBANK"],
+        exchange="NSE",
+        start_date=date(2026, 8, 10),
+        end_date=date(2026, 8, 11),
+    )
+
+    context = await assembler.assemble(request)
+
+    assert context.request == request
+    assert len(context.evidence) == 1
+
+
+@pytest.mark.asyncio
+async def test_assemble_without_dates_returns_empty_context() -> None:
+    service = FakeMarketService()
+    assembler = ResearchDataAssembler(service)
+
+    request = ResearchRequest(
+        question="Explain HDFC Bank.",
+        symbols=["HDFCBANK"],
+        exchange="NSE",
+    )
+
+    context = await assembler.assemble(request)
+
+    assert context.request == request
+    assert context.evidence == []
+
+
+@pytest.mark.asyncio
+async def test_assemble_without_symbols_returns_empty_context() -> None:
+    service = FakeMarketService()
+    assembler = ResearchDataAssembler(service)
+
+    request = ResearchRequest(
+        question="Explain the Indian banking sector.",
+    )
+
+    context = await assembler.assemble(request)
+
+    assert context.request == request
+    assert context.evidence == []
+
+
+@pytest.mark.asyncio
+async def test_assemble_uses_request_date_range() -> None:
+    service = FakeMarketService()
+    assembler = ResearchDataAssembler(service)
+
+    request = ResearchRequest(
+        question="Analyse HDFC Bank.",
+        symbols=["HDFCBANK"],
+        exchange="NSE",
+        start_date=date(2026, 8, 10),
+        end_date=date(2026, 8, 11),
+    )
+
+    context = await assembler.assemble(request)
+
+    assert context.request == request
+    assert len(context.evidence) == 1
+
+
+@pytest.mark.asyncio
+async def test_assemble_without_dates_returns_empty_context() -> None:
+    service = FakeMarketService()
+    assembler = ResearchDataAssembler(service)
+
+    request = ResearchRequest(
+        question="Explain HDFC Bank.",
+        symbols=["HDFCBANK"],
+        exchange="NSE",
+    )
+
+    context = await assembler.assemble(request)
+
+    assert context.request == request
+    assert context.evidence == []
+
+
+@pytest.mark.asyncio
+async def test_assemble_without_symbols_returns_empty_context() -> None:
+    service = FakeMarketService()
+    assembler = ResearchDataAssembler(service)
+
+    request = ResearchRequest(
+        question="Explain the Indian banking sector.",
+    )
+
+    context = await assembler.assemble(request)
+
+    assert context.request == request
+    assert context.evidence == []

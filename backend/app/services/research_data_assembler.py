@@ -1,4 +1,4 @@
-﻿from datetime import date, datetime, timezone
+from datetime import date, datetime, timezone
 
 from backend.app.domain.evidence_factory import create_market_evidence
 from backend.app.domain.research import ResearchContext, ResearchRequest
@@ -6,10 +6,28 @@ from backend.app.services.market_service import MarketService
 
 
 class ResearchDataAssembler:
-    """Builds an ephemeral research context from live data sources."""
+    """Builds an ephemeral research context from available data sources."""
 
     def __init__(self, market_service: MarketService) -> None:
         self._market_service = market_service
+
+    async def assemble(
+        self,
+        request: ResearchRequest,
+    ) -> ResearchContext:
+        context = ResearchContext(request=request)
+
+        if not request.symbols:
+            return context
+
+        if request.start_date is None or request.end_date is None:
+            return context
+
+        return await self.assemble_market_context(
+            request=request,
+            start_date=request.start_date,
+            end_date=request.end_date,
+        )
 
     async def assemble_market_context(
         self,

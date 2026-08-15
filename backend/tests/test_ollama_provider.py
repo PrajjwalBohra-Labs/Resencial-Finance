@@ -6,6 +6,7 @@ from backend.app.domain.llm import (
     LLMRequest,
     MessageRole,
 )
+from backend.app.core.exceptions import LLMProviderError
 from backend.app.llm.ollama import OllamaProvider
 
 
@@ -117,7 +118,7 @@ async def test_ollama_provider_rejects_empty_response(
     )
 
     with pytest.raises(
-        ValueError,
+        LLMProviderError,
         match="empty or invalid response",
     ):
         await provider.generate(request)

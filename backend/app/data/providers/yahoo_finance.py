@@ -1,8 +1,9 @@
-﻿import asyncio
+import asyncio
 from datetime import date, datetime, timezone
 
 import yfinance as yf
 
+from backend.app.core.exceptions import MarketDataProviderError
 from backend.app.data.providers.market import MarketDataProvider
 from backend.app.instruments import Equity
 from backend.app.schemas import DataFreshness, HistoricalPrice, Quote, Source
@@ -52,46 +53,53 @@ class YahooFinanceMarketProvider(MarketDataProvider):
         yahoo_symbol = self._to_yahoo_symbol(symbol)
 
         def fetch() -> Quote:
-            ticker = yf.Ticker(yahoo_symbol)
+            try:
+                ticker = yf.Ticker(yahoo_symbol)
 
-            history = ticker.history(
-                period="1d",
-                interval="1m",
-                auto_adjust=False,
-                prepost=False,
-            )
-
-            if history.empty:
-                raise ValueError(
-                    f"No market data returned for symbol '{yahoo_symbol}'."
+                history = ticker.history(
+                    period="1d",
+                    interval="1m",
+                    auto_adjust=False,
+                    prepost=False,
                 )
 
-            latest = history.iloc[-1]
-            timestamp = history.index[-1]
+                if history.empty:
+                    raise ValueError(
+                        f"No market data returned for symbol '{yahoo_symbol}'."
+                    )
 
-            if isinstance(timestamp, datetime):
-                quote_timestamp = timestamp
-            else:
-                quote_timestamp = timestamp.to_pydatetime()
+                latest = history.iloc[-1]
+                timestamp = history.index[-1]
 
-            retrieved_at = self._retrieved_at()
+                if isinstance(timestamp, datetime):
+                    quote_timestamp = timestamp
+                else:
+                    quote_timestamp = timestamp.to_pydatetime()
 
-            return Quote(
-                symbol=symbol.upper(),
-                provider_symbol=yahoo_symbol,
-                timestamp=quote_timestamp,
-                open=float(latest["Open"]),
-                high=float(latest["High"]),
-                low=float(latest["Low"]),
-                close=float(latest["Close"]),
-                volume=int(latest["Volume"]),
-                source=self._source(),
-                freshness=DataFreshness(
-                    observed_at=quote_timestamp,
-                    retrieved_at=retrieved_at,
-                    status="fresh",
-                ),
-            )
+                retrieved_at = self._retrieved_at()
+
+                return Quote(
+                    symbol=symbol.upper(),
+                    provider_symbol=yahoo_symbol,
+                    timestamp=quote_timestamp,
+                    open=float(latest["Open"]),
+                    high=float(latest["High"]),
+                    low=float(latest["Low"]),
+                    close=float(latest["Close"]),
+                    volume=int(latest["Volume"]),
+                    source=self._source(),
+                    freshness=DataFreshness(
+                        observed_at=quote_timestamp,
+                        retrieved_at=retrieved_at,
+                        status="fresh",
+                    ),
+                )
+            except ValueError:
+                raise
+            except Exception as exc:
+                raise MarketDataProviderError(
+                    "Yahoo Finance could not provide the requested quote."
+                ) from exc
 
         return await asyncio.to_thread(fetch)
 
@@ -104,34 +112,39 @@ class YahooFinanceMarketProvider(MarketDataProvider):
         yahoo_symbol = self._to_yahoo_symbol(symbol)
 
         def fetch() -> list[HistoricalPrice]:
-            ticker = yf.Ticker(yahoo_symbol)
+            try:
+                ticker = yf.Ticker(yahoo_symbol)
 
-            history = ticker.history(
-                start=start_date,
-                end=end_date,
-                interval="1d",
-                auto_adjust=False,
-                prepost=False,
-            )
-
-            if history.empty:
-                return []
-
-            prices: list[HistoricalPrice] = []
-
-            for timestamp, row in history.iterrows():
-                prices.append(
-                    HistoricalPrice(
-                        date=timestamp.date().isoformat(),
-                        open=float(row["Open"]),
-                        high=float(row["High"]),
-                        low=float(row["Low"]),
-                        close=float(row["Close"]),
-                        volume=int(row["Volume"]),
-                    )
+                history = ticker.history(
+                    start=start_date,
+                    end=end_date,
+                    interval="1d",
+                    auto_adjust=False,
+                    prepost=False,
                 )
 
-            return prices
+                if history.empty:
+                    return []
+
+                prices: list[HistoricalPrice] = []
+
+                for timestamp, row in history.iterrows():
+                    prices.append(
+                        HistoricalPrice(
+                            date=timestamp.date().isoformat(),
+                            open=float(row["Open"]),
+                            high=float(row["High"]),
+                            low=float(row["Low"]),
+                            close=float(row["Close"]),
+                            volume=int(row["Volume"]),
+                        )
+                    )
+
+                return prices
+            except Exception as exc:
+                raise MarketDataProviderError(
+                    "Yahoo Finance could not provide historical market data."
+                ) from exc
 
         return await asyncio.to_thread(fetch)
 
@@ -142,21 +155,26 @@ class YahooFinanceMarketProvider(MarketDataProvider):
         yahoo_symbol = self._to_yahoo_symbol(symbol)
 
         def fetch() -> Equity | None:
-            ticker = yf.Ticker(yahoo_symbol)
-            info = ticker.info
+            try:
+                ticker = yf.Ticker(yahoo_symbol)
+                info = ticker.info
 
-            if not info:
-                return None
+                if not info:
+                    return None
 
-            return Equity(
-                symbol=symbol.upper(),
-                name=info.get("longName")
-                or info.get("shortName")
-                or symbol.upper(),
-                exchange=info.get("exchange"),
-                isin=info.get("isin"),
-                sector=info.get("sector"),
-                industry=info.get("industry"),
-            )
+                return Equity(
+                    symbol=symbol.upper(),
+                    name=info.get("longName")
+                    or info.get("shortName")
+                    or symbol.upper(),
+                    exchange=info.get("exchange"),
+                    isin=info.get("isin"),
+                    sector=info.get("sector"),
+                    industry=info.get("industry"),
+                )
+            except Exception as exc:
+                raise MarketDataProviderError(
+                    "Yahoo Finance could not provide instrument information."
+                ) from exc
 
         return await asyncio.to_thread(fetch)

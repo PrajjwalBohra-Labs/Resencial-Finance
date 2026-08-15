@@ -1,7 +1,8 @@
-﻿from typing import Any
+from typing import Any
 
 import httpx
 
+from backend.app.core.exceptions import LLMProviderError
 from backend.app.domain.llm import LLMProvider, LLMRequest, LLMResponse
 
 
@@ -35,21 +36,28 @@ class OllamaProvider(LLMProvider):
             },
         }
 
-        async with httpx.AsyncClient(timeout=self._timeout) as client:
-            response = await client.post(
-                f"{self._base_url}/api/chat",
-                json=payload,
-            )
+        try:
+            async with httpx.AsyncClient(
+                timeout=self._timeout,
+            ) as client:
+                response = await client.post(
+                    f"{self._base_url}/api/chat",
+                    json=payload,
+                )
 
-        response.raise_for_status()
+            response.raise_for_status()
+            data = response.json()
 
-        data = response.json()
+        except (httpx.RequestError, httpx.HTTPStatusError, ValueError) as exc:
+            raise LLMProviderError(
+                "Ollama could not fulfill the research request."
+            ) from exc
 
         message = data.get("message", {})
         content = message.get("content")
 
         if not isinstance(content, str) or not content.strip():
-            raise ValueError(
+            raise LLMProviderError(
                 "Ollama returned an empty or invalid response."
             )
 

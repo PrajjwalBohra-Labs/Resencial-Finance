@@ -10,4 +10,4 @@ yfinance
 [dev]
 pytest
 pytest-asyncio
-httpx
+httpx2

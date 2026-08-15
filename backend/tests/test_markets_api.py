@@ -201,3 +201,181 @@ async def test_get_history_rejects_invalid_dates(
         response.json()["detail"]
         == "start_date must be before or equal to end_date."
     )
+from datetime import date, datetime, timezone
+
+import httpx
+import pytest
+
+from backend.app.api.routes.markets import get_market_service
+from backend.app.core.exceptions import MarketDataProviderError
+from backend.app.instruments import Equity, InstrumentResolver
+from backend.app.main import app
+from backend.app.schemas import (
+    DataFreshness,
+    HistoricalPrice,
+    Quote,
+    Source,
+)
+from backend.app.services.market_service import MarketService
+
+
+TEST_SOURCE = Source(
+    name="Test Provider",
+    type="market_data",
+    provider="fake",
+)
+
+
+class FakeMarketProvider:
+    @property
+    def name(self) -> str:
+        return "fake"
+
+    async def get_quote(self, symbol: str) -> Quote:
+        observed_at = datetime(
+            2026,
+            8,
+            15,
+            10,
+            0,
+            tzinfo=timezone.utc,
+        )
+
+        return Quote(
+            symbol=symbol,
+            provider_symbol=symbol,
+            timestamp=observed_at,
+            open=750.0,
+            high=760.0,
+            low=745.0,
+            close=755.0,
+            volume=1000000,
+            source=TEST_SOURCE,
+            freshness=DataFreshness(
+                observed_at=observed_at,
+                retrieved_at=observed_at,
+                status="fresh",
+            ),
+        )
+
+    async def get_historical_prices(
+        self,
+        symbol: str,
+        start_date: date,
+        end_date: date,
+    ) -> list[HistoricalPrice]:
+        assert symbol == "HDFCBANK.NS"
+
+        return [
+            HistoricalPrice(
+                date="2026-08-10",
+                open=740.0,
+                high=750.0,
+                low=735.0,
+                close=748.0,
+                volume=1000000,
+            ),
+            HistoricalPrice(
+                date="2026-08-11",
+                open=748.0,
+                high=758.0,
+                low=744.0,
+                close=755.0,
+                volume=1200000,
+            ),
+        ]
+
+    async def get_equity(
+        self,
+        symbol: str,
+    ) -> Equity | None:
+        return Equity(
+            symbol=symbol,
+            name="Test Company",
+            exchange="NSE",
+        )
+
+
+@pytest.mark.asyncio
+async def test_get_history_returns_503_when_market_provider_fails() -> None:
+    class FailingMarketProvider(FakeMarketProvider):
+        async def get_historical_prices(
+            self,
+            symbol: str,
+            start_date: date,
+            end_date: date,
+        ) -> list[HistoricalPrice]:
+            raise MarketDataProviderError(
+                "Yahoo Finance could not provide historical market data."
+            )
+
+    failing_service = MarketService(
+        provider=FailingMarketProvider(),
+        resolver=InstrumentResolver(),
+    )
+
+    app.dependency_overrides[get_market_service] = (
+        lambda: failing_service
+    )
+
+    try:
+        transport = httpx.ASGITransport(app=app)
+
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://test",
+        ) as client:
+            response = await client.get(
+                "/api/markets/history/HDFCBANK",
+                params={
+                    "exchange": "NSE",
+                    "start_date": "2026-08-10",
+                    "end_date": "2026-08-11",
+                },
+            )
+
+        assert response.status_code == 503
+        assert response.json()["detail"] == (
+            "Market data provider is temporarily unavailable."
+        )
+
+    finally:
+        app.dependency_overrides.clear()
+    
+
+@pytest.mark.asyncio
+async def test_get_quote_returns_503_when_market_provider_fails() -> None:
+    class FailingMarketProvider(FakeMarketProvider):
+        async def get_quote(self, symbol: str) -> Quote:
+            raise MarketDataProviderError(
+                "Yahoo Finance could not provide the requested quote."
+            )
+
+    failing_service = MarketService(
+        provider=FailingMarketProvider(),
+        resolver=InstrumentResolver(),
+    )
+
+    app.dependency_overrides[get_market_service] = (
+        lambda: failing_service
+    )
+
+    try:
+        transport = httpx.ASGITransport(app=app)
+
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://test",
+        ) as client:
+            response = await client.get(
+                "/api/markets/quote/HDFCBANK",
+                params={"exchange": "NSE"},
+            )
+
+        assert response.status_code == 503
+        assert response.json()["detail"] == (
+            "Market data provider is temporarily unavailable."
+        )
+
+    finally:
+        app.dependency_overrides.clear()
