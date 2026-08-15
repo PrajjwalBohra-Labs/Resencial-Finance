@@ -1,0 +1,17 @@
+Metadata-Version: 2.4
+Name: resencial-finance-backend
+Version: 0.1.0
+Summary: Backend API for Resencial Finance
+Requires-Python: >=3.12
+Requires-Dist: fastapi
+Requires-Dist: uvicorn[standard]
+Requires-Dist: pydantic
+Requires-Dist: pydantic-settings
+Requires-Dist: httpx
+Requires-Dist: pandas
+Requires-Dist: numpy
+Requires-Dist: yfinance
+Provides-Extra: dev
+Requires-Dist: pytest; extra == "dev"
+Requires-Dist: pytest-asyncio; extra == "dev"
+Requires-Dist: httpx; extra == "dev"

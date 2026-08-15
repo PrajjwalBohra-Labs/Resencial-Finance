@@ -1,0 +1,26 @@
+﻿from abc import abstractmethod
+from datetime import date
+
+from backend.app.data.providers.base import DataProvider
+
+
+class FilingsProvider(DataProvider):
+    """Interface for company and regulatory filings."""
+
+    @abstractmethod
+    async def search_filings(
+        self,
+        symbol: str,
+        start_date: date | None = None,
+        end_date: date | None = None,
+    ) -> list[dict[str, object]]:
+        """Search filings for a company or issuer."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_latest_filing(
+        self,
+        symbol: str,
+    ) -> dict[str, object] | None:
+        """Return the latest relevant filing."""
+        raise NotImplementedError
