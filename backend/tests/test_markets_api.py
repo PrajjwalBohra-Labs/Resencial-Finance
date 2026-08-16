@@ -1,4 +1,4 @@
-﻿from datetime import date, datetime, timezone
+from datetime import date, datetime, timezone
 
 import httpx
 import pytest
@@ -167,9 +167,9 @@ async def test_get_history(client: httpx.AsyncClient) -> None:
     assert analysis["percentage_return"] == pytest.approx(
         0.9358288770053476,
     )
-    assert analysis["cagr"] > 0
+    assert analysis["cagr"] is None
+    assert analysis["annualised_volatility"] is None
     assert analysis["maximum_drawdown"] == 0.0
-    assert analysis["annualised_volatility"] == 0.0
 
     assert analysis["price_summary"]["starting_price"] == 748.0
     assert analysis["price_summary"]["latest_price"] == 755.0
@@ -379,3 +379,6 @@ async def test_get_quote_returns_503_when_market_provider_fails() -> None:
 
     finally:
         app.dependency_overrides.clear()
+
+
+

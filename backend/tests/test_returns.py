@@ -1,7 +1,9 @@
-﻿import pytest
+import pytest
 
 from backend.app.analytics.returns import (
     calculate_absolute_return,
+    calculate_daily_price_changes,
+    calculate_market_period_summary,
     calculate_percentage_return,
     calculate_price_summary,
 )
@@ -98,3 +100,30 @@ def test_price_summary_requires_data() -> None:
         match="At least one price observation is required",
     ):
         calculate_price_summary([])
+
+def test_calculate_daily_price_changes() -> None:
+    result = calculate_daily_price_changes(create_prices())
+
+    assert len(result) == 3
+
+    assert result[0].date == "2026-08-10"
+    assert result[0].open_to_close_change == 0.0
+    assert result[0].open_to_close_change_percentage == pytest.approx(0.0)
+
+    assert result[1].date == "2026-08-11"
+    assert result[1].open_to_close_change == 10.0
+    assert result[1].open_to_close_change_percentage == pytest.approx(10.0 / 100.0 * 100.0)
+
+    assert result[2].date == "2026-08-12"
+    assert result[2].open_to_close_change == -5.0
+    assert result[2].open_to_close_change_percentage == pytest.approx(-5.0 / 110.0 * 100.0)
+
+
+def test_calculate_market_period_summary() -> None:
+    result = calculate_market_period_summary(create_prices())
+
+    assert result.period_high == 115.0
+    assert result.period_low == 95.0
+    assert result.total_volume == 3100000
+    assert result.average_daily_volume == pytest.approx(1033333.3333333334)
+

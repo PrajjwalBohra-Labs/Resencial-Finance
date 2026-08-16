@@ -1,4 +1,4 @@
-﻿from datetime import date
+from datetime import date
 
 import pytest
 
@@ -277,3 +277,142 @@ async def test_assemble_without_symbols_returns_empty_context() -> None:
 
     assert context.request == request
     assert context.evidence == []
+
+@pytest.mark.asyncio
+async def test_assemble_market_context_includes_deterministic_market_metrics() -> None:
+    market_service = FakeMarketService()
+    assembler = ResearchDataAssembler(market_service)
+
+    request = ResearchRequest(
+        question="Research HDFC Bank.",
+        symbols=["HDFCBANK"],
+        exchange="NSE",
+        focus=ResearchFocus.MARKET,
+    )
+
+    context = await assembler.assemble_market_context(
+        request=request,
+        start_date=date(2026, 8, 10),
+        end_date=date(2026, 8, 11),
+    )
+
+    assert len(context.evidence) == 1
+
+    content = context.evidence[0].content
+
+    assert "Daily open-to-close changes:" in content
+    assert "2026-08-10:" in content
+    assert "2026-08-11:" in content
+    assert "Period high:" in content
+    assert "Period low:" in content
+    assert "Total volume:" in content
+    assert "Average daily volume:" in content
+from backend.app.services.fundamentals_service import FundamentalsService
+from backend.app.services.market_service import MarketService
+from backend.app.services.research_data_assembler import ResearchDataAssembler
+
+
+class FakeFundamentalsProvider:
+    name = "fake-fundamentals"
+
+    async def get_income_statement(
+        self,
+        symbol: str,
+    ) -> list[dict[str, object]]:
+        return [
+            {
+                "period": "2026-03-31",
+                "Total Revenue": 1000000.0,
+                "Net Income": 200000.0,
+            }
+        ]
+
+    async def get_balance_sheet(
+        self,
+        symbol: str,
+    ) -> list[dict[str, object]]:
+        return [
+            {
+                "period": "2026-03-31",
+                "Total Assets": 5000000.0,
+            }
+        ]
+
+    async def get_cash_flow(
+        self,
+        symbol: str,
+    ) -> list[dict[str, object]]:
+        return [
+            {
+                "period": "2026-03-31",
+                "Operating Cash Flow": 250000.0,
+            }
+        ]
+
+    async def get_key_ratios(
+        self,
+        symbol: str,
+    ) -> dict[str, object]:
+        return {
+            "marketCap": 1500000000000,
+            "trailingPE": 18.5,
+            "priceToBook": 2.4,
+        }
+
+
+@pytest.mark.asyncio
+async def test_fundamental_focus_adds_fundamental_evidence() -> None:
+    fundamentals_service = FundamentalsService(
+        provider=FakeFundamentalsProvider(),
+    )
+
+    assembler = ResearchDataAssembler(
+        market_service=FakeMarketService(),
+        fundamentals_service=fundamentals_service,
+    )
+
+    request = ResearchRequest(
+        question="Analyse the fundamentals of HDFC Bank.",
+        symbols=["HDFCBANK"],
+        exchange="NSE",
+        focus=ResearchFocus.FUNDAMENTAL,
+    )
+
+    context = await assembler.assemble(request)
+
+    assert len(context.evidence) == 1
+    assert context.evidence[0].evidence_type.value == "fundamental"
+    assert context.evidence[0].symbol == "HDFCBANK"
+    assert "Total Revenue" in context.evidence[0].content
+    assert "trailingPE" in context.evidence[0].content
+
+
+@pytest.mark.asyncio
+async def test_market_focus_does_not_add_fundamental_evidence() -> None:
+    fundamentals_service = FundamentalsService(
+        provider=FakeFundamentalsProvider(),
+    )
+
+    assembler = ResearchDataAssembler(
+        market_service=FakeMarketService(),
+        fundamentals_service=fundamentals_service,
+    )
+
+    request = ResearchRequest(
+        question="Analyse HDFC Bank market performance.",
+        symbols=["HDFCBANK"],
+        exchange="NSE",
+        focus=ResearchFocus.MARKET,
+        start_date=date(2026, 8, 10),
+        end_date=date(2026, 8, 11),
+    )
+
+    context = await assembler.assemble(request)
+
+    assert len(context.evidence) == 1
+    assert all(
+        item.evidence_type.value != "fundamental"
+        for item in context.evidence
+    )
+
+

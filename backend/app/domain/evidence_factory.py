@@ -6,6 +6,7 @@ from backend.app.domain.evidence import (
     EvidenceSource,
     EvidenceType,
 )
+from backend.app.schemas.market import ReturnAnalysis
 
 
 def _dump_model(value: Any) -> dict[str, Any]:
@@ -20,6 +21,25 @@ def _dump_model(value: Any) -> dict[str, Any]:
     )
 
 
+def _format_analysis(analysis: ReturnAnalysis) -> str:
+    summary = analysis.price_summary
+
+    return "\n".join(
+        [
+            "Deterministic analysis:",
+            f"Absolute return: {analysis.absolute_return}",
+            f"Percentage return: {analysis.percentage_return}%",
+            f"CAGR: {analysis.cagr}%",
+            f"Maximum drawdown: {analysis.maximum_drawdown}%",
+            f"Annualised volatility: {analysis.annualised_volatility}%",
+            f"Starting price: {summary.starting_price}",
+            f"Latest price: {summary.latest_price}",
+            f"Highest close: {summary.highest_close}",
+            f"Lowest close: {summary.lowest_close}",
+        ]
+    )
+
+
 def create_market_evidence(
     *,
     symbol: str,
@@ -29,6 +49,7 @@ def create_market_evidence(
     source_name: str,
     retrieved_at: datetime,
     source_url: str | None = None,
+    analysis: ReturnAnalysis | None = None,
 ) -> Evidence:
     if not prices:
         raise ValueError("prices must contain at least one observation.")
@@ -59,6 +80,9 @@ def create_market_evidence(
         )
 
         title = f"{normalized_symbol} market price history"
+
+    if analysis is not None:
+        content = f"{content}\n\n{_format_analysis(analysis)}"
 
     return Evidence(
         evidence_type=EvidenceType.MARKET_DATA,

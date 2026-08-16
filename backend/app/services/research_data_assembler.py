@@ -1,15 +1,105 @@
 from datetime import date, datetime, timezone
+from typing import Any
 
 from backend.app.domain.evidence_factory import create_market_evidence
 from backend.app.domain.research import ResearchContext, ResearchRequest
+from backend.app.schemas.market import HistoricalPrice
+from backend.app.services.market_analysis_service import MarketAnalysisService
+from backend.app.services.fundamentals_service import FundamentalsService
 from backend.app.services.market_service import MarketService
+from backend.app.data.evidence.fundamental_evidence_adapter import FundamentalEvidenceAdapter
 
 
 class ResearchDataAssembler:
     """Builds an ephemeral research context from available data sources."""
 
-    def __init__(self, market_service: MarketService) -> None:
+    def __init__(
+        self,
+        market_service: MarketService,
+        fundamentals_service: FundamentalsService | None = None,
+    ) -> None:
         self._market_service = market_service
+        self._fundamentals_service = fundamentals_service
+
+    @staticmethod
+    def _normalize_prices(
+        prices: list[Any],
+    ) -> list[HistoricalPrice]:
+        return [
+            price
+            if isinstance(price, HistoricalPrice)
+            else HistoricalPrice.model_validate(price)
+            for price in prices
+        ]
+
+    @staticmethod
+    def _format_analysis(
+        analysis: Any,
+    ) -> str:
+        cagr = (
+            f"{analysis.cagr}%"
+            if analysis.cagr is not None
+            else "insufficient data"
+        )
+
+        volatility = (
+            f"{analysis.annualised_volatility}%"
+            if analysis.annualised_volatility is not None
+            else "insufficient data"
+        )
+
+        daily_changes = "\n".join(
+            (
+                f"{item.date}: "
+                f"change={item.open_to_close_change}; "
+                f"change_percentage="
+                f"{item.open_to_close_change_percentage}%"
+            )
+            for item in analysis.daily_changes
+        )
+
+        period = analysis.period_summary
+
+        return "\n".join(
+            [
+                "Deterministic analysis:",
+                f"Absolute return: {analysis.absolute_return}",
+                f"Percentage return: {analysis.percentage_return}%",
+                f"CAGR: {cagr}",
+                f"Maximum drawdown: {analysis.maximum_drawdown}%",
+                f"Annualised volatility: {volatility}",
+                "",
+                "Price summary:",
+                (
+                    "Starting price: "
+                    f"{analysis.price_summary.starting_price}"
+                ),
+                (
+                    "Latest price: "
+                    f"{analysis.price_summary.latest_price}"
+                ),
+                (
+                    "Highest close: "
+                    f"{analysis.price_summary.highest_close}"
+                ),
+                (
+                    "Lowest close: "
+                    f"{analysis.price_summary.lowest_close}"
+                ),
+                "",
+                "Daily open-to-close changes:",
+                daily_changes,
+                "",
+                "Period summary:",
+                f"Period high: {period.period_high}",
+                f"Period low: {period.period_low}",
+                f"Total volume: {period.total_volume}",
+                (
+                    "Average daily volume: "
+                    f"{period.average_daily_volume}"
+                ),
+            ]
+        )
 
     async def assemble(
         self,
@@ -20,14 +110,42 @@ class ResearchDataAssembler:
         if not request.symbols:
             return context
 
-        if request.start_date is None or request.end_date is None:
-            return context
+        if (
+            request.focus.value in {
+                "general",
+                "market",
+                "comparison",
+                "risk",
+                "fixed_income",
+                "macro",
+            }
+            and request.start_date is not None
+            and request.end_date is not None
+        ):
+            context = await self.assemble_market_context(
+                request=request,
+                start_date=request.start_date,
+                end_date=request.end_date,
+            )
 
-        return await self.assemble_market_context(
-            request=request,
-            start_date=request.start_date,
-            end_date=request.end_date,
-        )
+        if (
+            self._fundamentals_service is not None
+            and request.focus.value in {
+                "general",
+                "fundamental",
+                "valuation",
+            }
+        ):
+            adapter = FundamentalEvidenceAdapter(
+                self._fundamentals_service
+            )
+
+            fundamental_evidence = await adapter.collect(request)
+
+            for item in fundamental_evidence:
+                context.add_evidence(item)
+
+        return context
 
     async def assemble_market_context(
         self,
@@ -46,15 +164,19 @@ class ResearchDataAssembler:
         exchange = request.exchange or "NSE"
 
         for symbol in request.symbols:
-            prices = await self._market_service.get_historical_prices(
+            raw_prices = await self._market_service.get_historical_prices(
                 symbol=symbol,
                 exchange=exchange,
                 start_date=start_date,
                 end_date=end_date,
             )
 
+            prices = self._normalize_prices(raw_prices)
+
             if not prices:
                 continue
+
+            analysis = MarketAnalysisService.analyse_prices(prices)
 
             evidence = create_market_evidence(
                 symbol=symbol,
@@ -65,6 +187,17 @@ class ResearchDataAssembler:
                 retrieved_at=datetime.now(timezone.utc),
             )
 
+            evidence = evidence.model_copy(
+                update={
+                    "content": (
+                        f"{evidence.content}\n\n"
+                        f"{self._format_analysis(analysis)}"
+                    )
+                }
+            )
+
             context.add_evidence(evidence)
 
         return context
+
+

@@ -3,7 +3,12 @@ from typing import Any
 import httpx
 
 from backend.app.core.exceptions import LLMProviderError
-from backend.app.domain.llm import LLMProvider, LLMRequest, LLMResponse
+from backend.app.domain.llm import (
+    LLMProvider,
+    LLMRequest,
+    LLMResponse,
+    LLMUsage,
+)
 
 
 class OllamaProvider(LLMProvider):
@@ -61,8 +66,16 @@ class OllamaProvider(LLMProvider):
                 "Ollama returned an empty or invalid response."
             )
 
+        prompt_tokens = int(data.get("prompt_eval_count", 0))
+        completion_tokens = int(data.get("eval_count", 0))
+
         return LLMResponse(
             model=str(data.get("model", request.model)),
             content=content,
             provider=self.provider_name,
+            usage=LLMUsage(
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                total_tokens=prompt_tokens + completion_tokens,
+            ),
         )

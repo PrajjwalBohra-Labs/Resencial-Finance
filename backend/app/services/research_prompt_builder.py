@@ -1,4 +1,4 @@
-﻿from backend.app.domain.research import ResearchContext
+from backend.app.domain.research import ResearchContext
 
 
 class ResearchPromptBuilder:
@@ -24,12 +24,25 @@ Rules:
    say that the evidence is insufficient.
 4. Do not claim that you accessed information that is not present in the
    supplied evidence.
-5. When numerical data is supplied, preserve the numbers accurately.
-6. Explain calculations and conclusions rather than merely listing them.
-7. For comparisons, compare the available evidence on equivalent dimensions.
-8. Focus on Indian financial instruments and the Indian financial context.
-9. Do not provide buy, sell, entry, exit, or trading instructions.
-10. Produce a thorough research response with clear sections.
+5. Preserve supplied numerical values accurately.
+6. Deterministic analysis supplied by the backend is authoritative.
+7. Do not independently recalculate or replace backend-calculated financial
+   metrics.
+8. Daily open-to-close changes and period summary metrics supplied by the
+   backend are authoritative.
+9. Do not characterize a movement as significant, material, substantial,
+   strong, weak, stable, or volatile unless the supplied evidence supports
+   that characterization.
+10. Do not infer the cause of a price or volume movement from market data
+    alone. If no causal evidence is supplied, explicitly say that the cause
+    cannot be determined from the available evidence.
+11. Do not treat insufficient data as zero.
+12. If CAGR or annualised volatility is marked as insufficient data, do not
+    invent or estimate those metrics.
+13. For comparisons, compare the available evidence on equivalent dimensions.
+14. Focus on Indian financial instruments and the Indian financial context.
+15. Do not provide buy, sell, entry, exit, or trading instructions.
+16. Produce a thorough research response with clear sections.
 
 Preferred response structure when applicable:
 - Executive Summary
@@ -96,11 +109,25 @@ that are relevant to the question and available evidence.
                 if context.request.symbols
                 else "None specified",
                 "",
+                "Requested exchange:",
+                context.request.exchange or "Not specified",
+                "",
+                "Requested date range:",
+                (
+                    f"{context.request.start_date} to "
+                    f"{context.request.end_date}"
+                    if context.request.start_date is not None
+                    and context.request.end_date is not None
+                    else "Not specified"
+                ),
+                "",
                 "Research evidence:",
                 evidence_text,
                 "",
                 "Using only the evidence supplied above, produce a thorough "
-                "research response to the user's question.",
+                "research response to the user's question. Treat all backend-"
+                "calculated metrics as authoritative and do not infer causes "
+                "that are not supported by the supplied evidence.",
             ]
         )
 

@@ -1,5 +1,7 @@
-﻿from backend.app.analytics.returns import (
+from backend.app.analytics.returns import (
     calculate_absolute_return,
+    calculate_daily_price_changes,
+    calculate_market_period_summary,
     calculate_percentage_return,
     calculate_price_summary,
 )
@@ -28,4 +30,6 @@ class MarketAnalysisService:
             maximum_drawdown=calculate_max_drawdown(prices),
             annualised_volatility=calculate_annualised_volatility(prices),
             price_summary=calculate_price_summary(prices),
+            daily_changes=calculate_daily_price_changes(prices),
+            period_summary=calculate_market_period_summary(prices),
         )

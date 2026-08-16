@@ -1,4 +1,4 @@
-﻿from abc import ABC, abstractmethod
+from abc import ABC, abstractmethod
 from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -25,12 +25,21 @@ class LLMRequest(BaseModel):
     temperature: float = Field(default=0.2, ge=0.0, le=2.0)
 
 
+class LLMUsage(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    prompt_tokens: int = Field(default=0, ge=0)
+    completion_tokens: int = Field(default=0, ge=0)
+    total_tokens: int = Field(default=0, ge=0)
+
+
 class LLMResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     model: str
     content: str
     provider: str
+    usage: LLMUsage = Field(default_factory=LLMUsage)
 
 
 class LLMProvider(ABC):

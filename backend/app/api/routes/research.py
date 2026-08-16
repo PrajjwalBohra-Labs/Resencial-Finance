@@ -5,10 +5,14 @@ from backend.app.core.exceptions import (
     LLMProviderError,
     MarketDataProviderError,
 )
-from backend.app.data.providers import YahooFinanceMarketProvider
+from backend.app.data.providers import (
+    YahooFinanceFundamentalsProvider,
+    YahooFinanceMarketProvider,
+)
 from backend.app.domain.research import ResearchAnswer, ResearchRequest
 from backend.app.instruments import InstrumentResolutionError, resolver
 from backend.app.llm.ollama import OllamaProvider
+from backend.app.services.fundamentals_service import FundamentalsService
 from backend.app.services.market_service import MarketService
 from backend.app.services.research_data_assembler import ResearchDataAssembler
 from backend.app.services.research_engine import ResearchEngine
@@ -25,8 +29,13 @@ def get_research_orchestrator() -> ResearchOrchestrator:
         resolver=resolver,
     )
 
+    fundamentals_service = FundamentalsService(
+        provider=YahooFinanceFundamentalsProvider(),
+    )
+
     evidence_assembler = ResearchDataAssembler(
         market_service=market_service,
+        fundamentals_service=fundamentals_service,
     )
 
     llm_provider = OllamaProvider(
@@ -77,3 +86,4 @@ async def research(
             status_code=503,
             detail="Research model provider is temporarily unavailable.",
         ) from exc
+

@@ -1,4 +1,4 @@
-﻿import math
+import math
 from datetime import date
 
 from backend.app.schemas.market import HistoricalPrice
@@ -6,12 +6,10 @@ from backend.app.schemas.market import HistoricalPrice
 
 def calculate_cagr(
     prices: list[HistoricalPrice],
-) -> float:
-    """Calculate CAGR as a percentage."""
+) -> float | None:
+    """Calculate CAGR when the observation period spans at least one year."""
     if len(prices) < 2:
-        raise ValueError(
-            "At least two price observations are required."
-        )
+        return None
 
     starting_price = prices[0].close
     ending_price = prices[-1].close
@@ -31,12 +29,13 @@ def calculate_cagr(
             "Price observations must span a positive time period."
         )
 
+    if days < 365:
+        return None
+
     years = days / 365.25
 
     if years <= 0:
-        raise ValueError(
-            "The analysis period must be greater than zero."
-        )
+        return None
 
     return (
         ((ending_price / starting_price) ** (1 / years)) - 1
@@ -74,12 +73,10 @@ def calculate_max_drawdown(
 
 def calculate_annualised_volatility(
     prices: list[HistoricalPrice],
-) -> float:
-    """Calculate annualised historical volatility as a percentage."""
-    if len(prices) < 2:
-        raise ValueError(
-            "At least two price observations are required."
-        )
+) -> float | None:
+    """Calculate annualised volatility with sufficient return observations."""
+    if len(prices) < 3:
+        return None
 
     returns: list[float] = []
 
@@ -95,17 +92,15 @@ def calculate_annualised_volatility(
 
         returns.append(daily_return)
 
-    if not returns:
-        raise ValueError(
-            "At least one return observation is required."
-        )
+    if len(returns) < 2:
+        return None
 
     mean = sum(returns) / len(returns)
 
     variance = sum(
         (value - mean) ** 2
         for value in returns
-    ) / len(returns)
+    ) / (len(returns) - 1)
 
     standard_deviation = math.sqrt(variance)
 

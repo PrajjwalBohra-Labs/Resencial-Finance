@@ -75,12 +75,18 @@ def test_calculate_annualised_volatility() -> None:
 
 
 def test_cagr_requires_two_observations() -> None:
-    with pytest.raises(
-        ValueError,
-        match="At least two price observations are required",
-    ):
-        calculate_cagr(create_prices()[:1])
+    prices = [
+        HistoricalPrice(
+            date="2026-08-10",
+            open=100.0,
+            high=101.0,
+            low=99.0,
+            close=100.0,
+            volume=1000,
+        ),
+    ]
 
+    assert calculate_cagr(prices) is None
 
 def test_drawdown_requires_data() -> None:
     with pytest.raises(
@@ -91,12 +97,18 @@ def test_drawdown_requires_data() -> None:
 
 
 def test_volatility_requires_two_observations() -> None:
-    with pytest.raises(
-        ValueError,
-        match="At least two price observations are required",
-    ):
-        calculate_annualised_volatility(create_prices()[:1])
+    prices = [
+        HistoricalPrice(
+            date="2026-08-10",
+            open=100.0,
+            high=101.0,
+            low=99.0,
+            close=100.0,
+            volume=1000,
+        ),
+    ]
 
+    assert calculate_annualised_volatility(prices) is None
 
 def test_cagr_rejects_zero_price() -> None:
     prices = create_prices()
@@ -138,4 +150,5 @@ def test_volatility_rejects_non_positive_price() -> None:
         match="Prices must be greater than zero",
     ):
         calculate_annualised_volatility(prices)
+
 

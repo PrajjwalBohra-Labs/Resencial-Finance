@@ -52,6 +52,8 @@ def test_research_endpoint() -> None:
         assert body["model"] == "test-model"
         assert body["provider"] == "fake_llm"
         assert body["evidence_count"] == 1
+        assert "evidence" in body
+        assert len(body["evidence"]) == 0
 
         assert len(fake.requests) == 1
         assert fake.requests[0].symbols == ["HDFCBANK"]
@@ -76,3 +78,4 @@ def test_research_endpoint_rejects_invalid_date_range() -> None:
     )
 
     assert response.status_code == 422
+

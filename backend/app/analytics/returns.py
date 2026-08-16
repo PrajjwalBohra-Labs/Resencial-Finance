@@ -1,4 +1,8 @@
-﻿from backend.app.schemas.market import HistoricalPrice
+from backend.app.schemas.market import (
+    DailyPriceChange,
+    HistoricalPrice,
+    MarketPeriodSummary,
+)
 
 
 def calculate_absolute_return(
@@ -49,3 +53,57 @@ def calculate_price_summary(
         "highest_close": max(closing_prices),
         "lowest_close": min(closing_prices),
     }
+
+
+def calculate_daily_price_changes(
+    prices: list[HistoricalPrice],
+) -> list[DailyPriceChange]:
+    if not prices:
+        raise ValueError(
+            "At least one price observation is required."
+        )
+
+    changes: list[DailyPriceChange] = []
+
+    for price in prices:
+        if price.open == 0:
+            raise ValueError(
+                "Opening price cannot be zero."
+            )
+
+        absolute_change = price.close - price.open
+        percentage_change = (
+            absolute_change / price.open
+        ) * 100
+
+        changes.append(
+            DailyPriceChange(
+                date=price.date,
+                open_to_close_change=absolute_change,
+                open_to_close_change_percentage=percentage_change,
+            )
+        )
+
+    return changes
+
+
+def calculate_market_period_summary(
+    prices: list[HistoricalPrice],
+) -> MarketPeriodSummary:
+    if not prices:
+        raise ValueError(
+            "At least one price observation is required."
+        )
+
+    volumes = [price.volume for price in prices]
+    highs = [price.high for price in prices]
+    lows = [price.low for price in prices]
+
+    return MarketPeriodSummary(
+        period_high=max(highs),
+        period_low=min(lows),
+        total_volume=sum(volumes),
+        average_daily_volume=sum(volumes) / len(volumes),
+    )
+
+

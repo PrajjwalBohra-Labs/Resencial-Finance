@@ -1,4 +1,4 @@
-﻿from datetime import date
+from datetime import date
 
 from backend.app.data.providers.market import MarketDataProvider
 from backend.app.instruments import Equity, InstrumentResolver
@@ -59,11 +59,18 @@ class MarketService:
             exchange=exchange,
         )
 
-        return await self._provider.get_historical_prices(
+        prices = await self._provider.get_historical_prices(
             symbol=resolved.provider_symbol,
             start_date=start_date,
             end_date=end_date,
         )
+
+        return [
+            price
+            if isinstance(price, HistoricalPrice)
+            else HistoricalPrice.model_validate(price)
+            for price in prices
+        ]
 
     async def get_equity(
         self,

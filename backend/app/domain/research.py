@@ -1,9 +1,11 @@
-﻿from datetime import date
+from datetime import date
 from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from backend.app.domain.evidence import Evidence
+from backend.app.domain.llm import LLMUsage
+from backend.app.domain.research_validation import ResearchValidationResult, ResearchValidationStatus
 
 
 class ResearchFocus(StrEnum):
@@ -59,3 +61,12 @@ class ResearchAnswer(BaseModel):
     model: str
     provider: str
     evidence_count: int = Field(ge=0)
+    evidence: list[Evidence] = Field(default_factory=list)
+    usage: LLMUsage = Field(default_factory=LLMUsage)
+    validation: ResearchValidationResult = Field(
+        default_factory=lambda: ResearchValidationResult(
+            status=ResearchValidationStatus.PASSED
+        )
+    )
+
+

@@ -1,5 +1,5 @@
 import asyncio
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 import yfinance as yf
 
@@ -117,7 +117,7 @@ class YahooFinanceMarketProvider(MarketDataProvider):
 
                 history = ticker.history(
                     start=start_date,
-                    end=end_date,
+                    end=end_date + timedelta(days=1),
                     interval="1d",
                     auto_adjust=False,
                     prepost=False,
