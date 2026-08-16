@@ -1,4 +1,3 @@
-﻿@'
 # Resencial Finance
 
 Resencial Finance is a backend-first financial research platform focused on Indian financial markets.
