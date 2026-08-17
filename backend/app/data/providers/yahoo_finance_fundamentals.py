@@ -4,7 +4,7 @@ from typing import Any
 
 import yfinance as yf
 
-from backend.app.core.exceptions import MarketDataProviderError
+from backend.app.core.yahoo_errors import raise_classified_yahoo_exception
 from backend.app.core.provider_execution import run_provider_call
 from backend.app.data.providers.fundamentals import FundamentalsProvider
 from backend.app.domain.fundamentals import (
@@ -177,13 +177,14 @@ class YahooFinanceFundamentalsProvider(FundamentalsProvider):
             except ValueError:
                 raise
             except Exception as exc:
-                raise MarketDataProviderError(
-                    "Yahoo Finance could not provide the income statement."
-                ) from exc
+                raise_classified_yahoo_exception(
+                    exc,
+                    operation_name="yahoo_finance.fundamentals.income_statement",
+                )
 
         return await run_provider_call(
             fetch,
-            operation_name="yahoo_finance.fundamentals",
+            operation_name="yahoo_finance.fundamentals.income_statement",
         )
 
     async def get_balance_sheet(
@@ -205,13 +206,14 @@ class YahooFinanceFundamentalsProvider(FundamentalsProvider):
             except ValueError:
                 raise
             except Exception as exc:
-                raise MarketDataProviderError(
-                    "Yahoo Finance could not provide the balance sheet."
-                ) from exc
+                raise_classified_yahoo_exception(
+                    exc,
+                    operation_name="yahoo_finance.fundamentals.balance_sheet",
+                )
 
         return await run_provider_call(
             fetch,
-            operation_name="yahoo_finance.fundamentals",
+            operation_name="yahoo_finance.fundamentals.balance_sheet",
         )
 
     async def get_cash_flow(
@@ -233,13 +235,14 @@ class YahooFinanceFundamentalsProvider(FundamentalsProvider):
             except ValueError:
                 raise
             except Exception as exc:
-                raise MarketDataProviderError(
-                    "Yahoo Finance could not provide the cash flow statement."
-                ) from exc
+                raise_classified_yahoo_exception(
+                    exc,
+                    operation_name="yahoo_finance.fundamentals.cash_flow",
+                )
 
         return await run_provider_call(
             fetch,
-            operation_name="yahoo_finance.fundamentals",
+            operation_name="yahoo_finance.fundamentals.cash_flow",
         )
 
     async def get_key_ratios(
@@ -259,13 +262,18 @@ class YahooFinanceFundamentalsProvider(FundamentalsProvider):
                 return self._normalize_valuation_metrics(info)
 
             except Exception as exc:
-                raise MarketDataProviderError(
-                    "Yahoo Finance could not provide key financial ratios."
-                ) from exc
+                raise_classified_yahoo_exception(
+                    exc,
+                    operation_name="yahoo_finance.fundamentals.key_ratios",
+                )
 
         return await run_provider_call(
             fetch,
-            operation_name="yahoo_finance.fundamentals",
+            operation_name="yahoo_finance.fundamentals.key_ratios",
         )
+
+
+
+
 
 

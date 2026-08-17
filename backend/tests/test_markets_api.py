@@ -1,4 +1,4 @@
-from datetime import date, datetime, timezone
+﻿from datetime import date, datetime, timezone
 
 import httpx
 import pytest
@@ -207,7 +207,10 @@ import httpx
 import pytest
 
 from backend.app.api.routes.markets import get_market_service
-from backend.app.core.exceptions import MarketDataProviderError
+from backend.app.core.exceptions import (
+    DataProviderUnavailableError,
+    MarketDataProviderError,
+)
 from backend.app.instruments import Equity, InstrumentResolver
 from backend.app.main import app
 from backend.app.schemas import (
@@ -381,4 +384,43 @@ async def test_get_quote_returns_503_when_market_provider_fails() -> None:
         app.dependency_overrides.clear()
 
 
+
+
+@pytest.mark.asyncio
+async def test_get_quote_returns_503_when_provider_times_out() -> None:
+    class TimeoutMarketProvider(FakeMarketProvider):
+        async def get_quote(self, symbol: str) -> Quote:
+            raise DataProviderUnavailableError(
+                "Provider operation 'yahoo_finance.market.quote' "
+                "exceeded the configured timeout."
+            )
+
+    timeout_service = MarketService(
+        provider=TimeoutMarketProvider(),
+        resolver=InstrumentResolver(),
+    )
+
+    app.dependency_overrides[get_market_service] = (
+        lambda: timeout_service
+    )
+
+    try:
+        transport = httpx.ASGITransport(app=app)
+
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://test",
+        ) as client:
+            response = await client.get(
+                "/api/markets/quote/HDFCBANK",
+                params={"exchange": "NSE"},
+            )
+
+        assert response.status_code == 503
+        assert response.json()["detail"] == (
+            "Market data provider is temporarily unavailable."
+        )
+
+    finally:
+        app.dependency_overrides.clear()
 

@@ -1,8 +1,8 @@
-from datetime import date, datetime, timezone
+﻿from datetime import date, datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from backend.app.core.exceptions import MarketDataProviderError
+from backend.app.core.exceptions import DataProviderError
 from backend.app.data.providers import YahooFinanceMarketProvider
 from backend.app.instruments import InstrumentResolutionError, resolver
 from backend.app.schemas import (
@@ -46,7 +46,7 @@ async def get_quote(
             status_code=400,
             detail=str(exc),
         ) from exc
-    except MarketDataProviderError as exc:
+    except DataProviderError as exc:
         raise HTTPException(
             status_code=503,
             detail="Market data provider is temporarily unavailable.",
@@ -84,7 +84,7 @@ async def get_historical_prices(
             status_code=400,
             detail=str(exc),
         ) from exc
-    except MarketDataProviderError as exc:
+    except DataProviderError as exc:
         raise HTTPException(
             status_code=503,
             detail="Market data provider is temporarily unavailable.",
@@ -118,3 +118,4 @@ async def get_historical_prices(
             status="fresh",
         ),
     )
+

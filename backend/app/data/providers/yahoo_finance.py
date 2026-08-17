@@ -3,7 +3,7 @@ from datetime import date, datetime, timedelta, timezone
 
 import yfinance as yf
 
-from backend.app.core.exceptions import MarketDataProviderError
+from backend.app.core.yahoo_errors import raise_classified_yahoo_exception
 from backend.app.core.provider_execution import run_provider_call
 from backend.app.data.providers.market import MarketDataProvider
 from backend.app.instruments import Equity
@@ -104,7 +104,7 @@ class YahooFinanceMarketProvider(MarketDataProvider):
 
         return await run_provider_call(
             fetch,
-            operation_name="yahoo_finance.market",
+            operation_name="yahoo_finance.market.quote",
         )
 
     async def get_historical_prices(
@@ -152,7 +152,7 @@ class YahooFinanceMarketProvider(MarketDataProvider):
 
         return await run_provider_call(
             fetch,
-            operation_name="yahoo_finance.market",
+            operation_name="yahoo_finance.market.historical_prices",
         )
 
     async def get_equity(
@@ -186,7 +186,13 @@ class YahooFinanceMarketProvider(MarketDataProvider):
 
         return await run_provider_call(
             fetch,
-            operation_name="yahoo_finance.market",
+            operation_name="yahoo_finance.market.equity",
         )
+
+
+
+
+
+
 
 

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+﻿from fastapi import APIRouter, Depends, HTTPException
 
 from backend.app.core.config import get_settings
 from backend.app.core.exceptions import (
@@ -75,7 +75,7 @@ async def research(
             detail=str(exc),
         ) from exc
 
-    except MarketDataProviderError as exc:
+    except DataProviderError as exc:
         raise HTTPException(
             status_code=503,
             detail="Market data provider is temporarily unavailable.",
@@ -86,4 +86,5 @@ async def research(
             status_code=503,
             detail="Research model provider is temporarily unavailable.",
         ) from exc
+
 

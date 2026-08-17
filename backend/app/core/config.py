@@ -18,6 +18,14 @@ class Settings(BaseSettings):
     ollama_model: str = ""
 
     provider_timeout_seconds: float = 15.0
+    provider_max_retries: int = 2
+    provider_retry_base_delay_seconds: float = 0.25
+    provider_retry_max_delay_seconds: float = 2.0
+    provider_retry_jitter_seconds: float = 0.1
+    provider_max_attempts: int = 3
+    provider_retry_initial_delay_seconds: float = 0.25
+    provider_retry_max_delay_seconds: float = 2.0
+    provider_retry_jitter_ratio: float = 0.20
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -30,3 +38,5 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
+
