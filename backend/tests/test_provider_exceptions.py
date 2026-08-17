@@ -2,6 +2,7 @@
     DataProviderError,
     DataProviderRequestError,
     DataProviderResponseError,
+    DataProviderRetryableError,
     DataProviderUnavailableError,
     MarketDataProviderError,
 )
@@ -10,8 +11,15 @@
 def test_provider_error_hierarchy() -> None:
     assert issubclass(DataProviderUnavailableError, DataProviderError)
     assert issubclass(DataProviderRequestError, DataProviderError)
+    assert issubclass(
+        DataProviderRetryableError,
+        DataProviderRequestError,
+    )
     assert issubclass(DataProviderResponseError, DataProviderError)
-    assert issubclass(MarketDataProviderError, DataProviderRequestError)
+    assert issubclass(
+        MarketDataProviderError,
+        DataProviderRetryableError,
+    )
 
 
 def test_market_data_error_remains_a_provider_error() -> None:
@@ -19,6 +27,7 @@ def test_market_data_error_remains_a_provider_error() -> None:
 
     assert isinstance(error, DataProviderError)
     assert isinstance(error, DataProviderRequestError)
+    assert isinstance(error, DataProviderRetryableError)
 
 
 def test_provider_errors_are_distinguishable() -> None:
