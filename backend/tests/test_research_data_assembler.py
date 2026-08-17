@@ -384,7 +384,7 @@ async def test_fundamental_focus_adds_fundamental_evidence() -> None:
     assert context.evidence[0].evidence_type.value == "fundamental"
     assert context.evidence[0].symbol == "HDFCBANK"
     assert "Total Revenue" in context.evidence[0].content
-    assert "trailingPE" in context.evidence[0].content
+    assert "Trailing P/E: 18.5" in context.evidence[0].content
 
 
 @pytest.mark.asyncio
@@ -416,3 +416,125 @@ async def test_market_focus_does_not_add_fundamental_evidence() -> None:
     )
 
 
+
+@pytest.mark.asyncio
+async def test_fundamental_evidence_contains_compact_latest_metrics() -> None:
+    fundamentals_service = FundamentalsService(
+        provider=FakeFundamentalsProvider(),
+    )
+
+    assembler = ResearchDataAssembler(
+        market_service=FakeMarketService(),
+        fundamentals_service=fundamentals_service,
+    )
+
+    request = ResearchRequest(
+        question="Analyse the fundamentals of HDFC Bank.",
+        symbols=["HDFCBANK"],
+        exchange="NSE",
+        focus=ResearchFocus.FUNDAMENTAL,
+    )
+
+    context = await assembler.assemble(request)
+
+    content = context.evidence[0].content
+
+    assert "Latest income statement:" in content
+    assert "Total Revenue: 1000000.0" in content
+    assert "Net Income: 200000.0" in content
+    assert "Latest balance sheet:" in content
+    assert "Total Assets: 5000000.0" in content
+    assert "Latest cash flow:" in content
+    assert "Operating Cash Flow: 250000.0" in content
+    assert "Key ratios:" in content
+    assert "Trailing P/E: 18.5" in content
+    assert "Price/book: 2.4" in content
+
+
+@pytest.mark.asyncio
+async def test_fundamental_evidence_uses_request_exchange() -> None:
+    fundamentals_service = FundamentalsService(
+        provider=FakeFundamentalsProvider(),
+    )
+
+    assembler = ResearchDataAssembler(
+        market_service=FakeMarketService(),
+        fundamentals_service=fundamentals_service,
+    )
+
+    request = ResearchRequest(
+        question="Analyse the fundamentals of HDFC Bank.",
+        symbols=["HDFCBANK"],
+        exchange="NSE",
+        focus=ResearchFocus.FUNDAMENTAL,
+    )
+
+    context = await assembler.assemble(request)
+
+    assert context.evidence[0].exchange == "NSE"
+
+
+@pytest.mark.asyncio
+async def test_fundamental_evidence_does_not_expose_raw_yahoo_fields() -> None:
+    fundamentals_service = FundamentalsService(
+        provider=FakeFundamentalsProvider(),
+    )
+
+    assembler = ResearchDataAssembler(
+        market_service=FakeMarketService(),
+        fundamentals_service=fundamentals_service,
+    )
+
+    request = ResearchRequest(
+        question="Analyse the fundamentals of HDFC Bank.",
+        symbols=["HDFCBANK"],
+        exchange="NSE",
+        focus=ResearchFocus.FUNDAMENTAL,
+    )
+
+    context = await assembler.assemble(request)
+
+    content = context.evidence[0].content
+
+    assert "{" not in content
+    assert "}" not in content
+
+
+@pytest.mark.asyncio
+async def test_fundamental_evidence_preserves_dividend_yield_percentage() -> None:
+    class DividendFundamentalsProvider(FakeFundamentalsProvider):
+        async def get_key_ratios(
+            self,
+            symbol: str,
+        ) -> dict[str, object]:
+            return {
+                "marketCap": 1500000000000,
+                "trailingPE": 18.5,
+                "priceToBook": 2.4,
+                "dividendYield": 1.79,
+            }
+
+    fundamentals_service = FundamentalsService(
+        provider=DividendFundamentalsProvider(),
+    )
+
+    assembler = ResearchDataAssembler(
+        market_service=FakeMarketService(),
+        fundamentals_service=fundamentals_service,
+    )
+
+    request = ResearchRequest(
+        question="Analyse HDFC Bank fundamentals.",
+        symbols=["HDFCBANK"],
+        exchange="NSE",
+        focus=ResearchFocus.FUNDAMENTAL,
+    )
+
+    context = await assembler.assemble(request)
+
+    assert "Dividend yield: 1.79%" in (
+        context.evidence[0].content
+    )
+    assert "Dividend yield: 179.0%" not in (
+        context.evidence[0].content
+    )

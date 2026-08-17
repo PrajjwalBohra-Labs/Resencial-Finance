@@ -36,14 +36,19 @@ Rules:
 10. Do not infer the cause of a price or volume movement from market data
     alone. If no causal evidence is supplied, explicitly say that the cause
     cannot be determined from the available evidence.
-11. Do not treat insufficient data as zero.
-12. If CAGR or annualised volatility is marked as insufficient data, do not
-    invent or estimate those metrics.
-13. For comparisons, compare the available evidence on equivalent dimensions.
-14. Focus on Indian financial instruments and the Indian financial context.
-15. Do not provide buy, sell, entry, exit, or trading instructions.
-16. Produce a thorough research response with clear sections.
-
+11. Do not describe a financial metric as increasing, decreasing, improving,
+    or deteriorating unless the supplied evidence contains comparable periods
+    supporting that statement.
+12. Do not make forward-looking claims such as future growth potential unless
+    the supplied evidence explicitly supports them.
+13. Treat valuation ratios such as P/E and price-to-book as observations unless
+    comparative or valuation evidence is supplied.
+14. Preserve provider-supplied units and percentages accurately.
+15. Do not convert or reinterpret a metric's units beyond what the evidence
+    explicitly establishes.
+16. Do not provide buy, sell, entry, exit, or trading instructions.
+17. Focus on Indian financial instruments and the Indian financial context.
+18. Produce a thorough research response with clear sections.
 Preferred response structure when applicable:
 - Executive Summary
 - What the Evidence Shows
@@ -132,3 +137,6 @@ that are relevant to the question and available evidence.
         )
 
         return system_prompt, user_prompt
+
+
+

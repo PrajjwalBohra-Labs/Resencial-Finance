@@ -166,3 +166,145 @@ def test_validator_matches_each_date_to_the_nearest_percentage() -> None:
 
     assert result.status == ResearchValidationStatus.PASSED
     assert result.issues == []
+
+def create_fundamental_context() -> ResearchContext:
+    return ResearchContext(
+        request=ResearchRequest(
+            question="Analyse HDFC Bank fundamentals.",
+            symbols=["HDFCBANK"],
+            exchange="NSE",
+        ),
+        evidence=[
+            Evidence(
+                evidence_type=EvidenceType.FUNDAMENTAL,
+                title="HDFC Bank fundamental data",
+                content=(
+                    "Fundamental evidence:\n"
+                    "Currency: INR\n\n"
+                    "Latest income statement:\n"
+                    "Period: 2026-03-31\n"
+                    "Total Revenue: 1925667800000.0\n"
+                    "Net Income: 704793400000.0\n"
+                    "Basic EPS: 45.89\n"
+                    "Diluted EPS: 45.75\n\n"
+                    "Key ratios:\n"
+                    "Trailing P/E: 15.89766\n"
+                    "Forward P/E: 11.613419\n"
+                    "Price/book: 1.8460538\n"
+                    "Return on equity: 13.838%\n"
+                    "Return on assets: 1.75%\n"
+                    "Revenue growth: 16.6%\n"
+                    "Earnings growth: 18.1%"
+                ),
+                source=EvidenceSource(
+                    name="Yahoo Finance",
+                    provider="yahoo_finance",
+                    retrieved_at=datetime.now(timezone.utc),
+                ),
+                symbol="HDFCBANK",
+                exchange="NSE",
+            )
+        ],
+    )
+
+
+def test_validator_accepts_rounded_fundamental_numbers() -> None:
+    validator = ResearchAnswerValidator()
+
+    result = validator.validate(
+        context=create_fundamental_context(),
+        answer=(
+            "Trailing P/E was 15.9, P/B was 1.85, "
+            "ROE was 13.8%, and revenue growth was 16.6%."
+        ),
+    )
+
+    assert result.status == ResearchValidationStatus.PASSED
+
+
+def test_validator_rejects_conflicting_fundamental_number() -> None:
+    validator = ResearchAnswerValidator()
+
+    result = validator.validate(
+        context=create_fundamental_context(),
+        answer=(
+            "The trailing P/E was 25.4."
+        ),
+    )
+
+    assert result.status == ResearchValidationStatus.FAILED
+    assert any(
+        issue.code == "fundamental_number_conflict"
+        for issue in result.issues
+    )
+
+
+def test_validator_rejects_unsupported_valuation_claim() -> None:
+    validator = ResearchAnswerValidator()
+
+    result = validator.validate(
+        context=create_fundamental_context(),
+        answer=(
+            "The company's P/E of 15.9 suggests that it is currently "
+            "overvalued."
+        ),
+    )
+
+    assert result.status == ResearchValidationStatus.FAILED
+    assert any(
+        issue.code == "unsupported_valuation_claim"
+        for issue in result.issues
+    )
+
+
+def test_validator_accepts_neutral_valuation_statement() -> None:
+    validator = ResearchAnswerValidator()
+
+    result = validator.validate(
+        context=create_fundamental_context(),
+        answer=(
+            "The trailing P/E is 15.9 and the price-to-book ratio is 1.85. "
+            "The supplied evidence does not include peer or benchmark "
+            "valuation data."
+        ),
+    )
+
+    assert result.status == ResearchValidationStatus.PASSED
+
+def test_validator_accepts_dividend_yield_percentage() -> None:
+    context = create_fundamental_context()
+
+    context.evidence[0].content += (
+        "\nDividend yield: 1.79%"
+    )
+
+    validator = ResearchAnswerValidator()
+
+    result = validator.validate(
+        context=context,
+        answer="Dividend yield was 1.79%."
+    )
+
+    assert result.status == ResearchValidationStatus.PASSED
+
+
+def test_validator_rejects_conflicting_dividend_yield() -> None:
+    context = create_fundamental_context()
+
+    context.evidence[0].content += (
+        "\nDividend yield: 1.79%"
+    )
+
+    validator = ResearchAnswerValidator()
+
+    result = validator.validate(
+        context=context,
+        answer="Dividend yield was 179%."
+    )
+
+    assert result.status == ResearchValidationStatus.FAILED
+
+    assert any(
+        issue.code == "fundamental_number_conflict"
+        for issue in result.issues
+    )
