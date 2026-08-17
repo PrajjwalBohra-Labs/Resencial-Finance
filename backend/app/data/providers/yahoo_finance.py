@@ -1,9 +1,10 @@
-import asyncio
+﻿import asyncio
 from datetime import date, datetime, timedelta, timezone
 
 import yfinance as yf
 
 from backend.app.core.exceptions import MarketDataProviderError
+from backend.app.core.provider_execution import run_provider_call
 from backend.app.data.providers.market import MarketDataProvider
 from backend.app.instruments import Equity
 from backend.app.schemas import DataFreshness, HistoricalPrice, Quote, Source
@@ -101,7 +102,10 @@ class YahooFinanceMarketProvider(MarketDataProvider):
                     "Yahoo Finance could not provide the requested quote."
                 ) from exc
 
-        return await asyncio.to_thread(fetch)
+        return await run_provider_call(
+            fetch,
+            operation_name="yahoo_finance.market",
+        )
 
     async def get_historical_prices(
         self,
@@ -146,7 +150,10 @@ class YahooFinanceMarketProvider(MarketDataProvider):
                     "Yahoo Finance could not provide historical market data."
                 ) from exc
 
-        return await asyncio.to_thread(fetch)
+        return await run_provider_call(
+            fetch,
+            operation_name="yahoo_finance.market",
+        )
 
     async def get_equity(
         self,
@@ -177,4 +184,9 @@ class YahooFinanceMarketProvider(MarketDataProvider):
                     "Yahoo Finance could not provide instrument information."
                 ) from exc
 
-        return await asyncio.to_thread(fetch)
+        return await run_provider_call(
+            fetch,
+            operation_name="yahoo_finance.market",
+        )
+
+

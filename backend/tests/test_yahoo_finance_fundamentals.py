@@ -1,4 +1,4 @@
-import pandas as pd
+﻿import pandas as pd
 import pytest
 
 from backend.app.data.providers.yahoo_finance_fundamentals import (
@@ -73,9 +73,18 @@ async def test_yahoo_fundamentals_provider_income_statement(
     result = await provider.get_income_statement("HDFCBANK")
 
     assert len(result) == 2
-    assert result[0]["period"] == "2026-03-31T00:00:00"
-    assert result[0]["Total Revenue"] == 1000000.0
-    assert result[0]["Net Income"] == 200000.0
+
+    assert result[0].period.period_end.isoformat() == (
+        "2026-03-31T00:00:00"
+    )
+    assert result[0].total_revenue == 1000000.0
+    assert result[0].net_income == 200000.0
+
+    assert result[1].period.period_end.isoformat() == (
+        "2025-03-31T00:00:00"
+    )
+    assert result[1].total_revenue == 900000.0
+    assert result[1].net_income == 170000.0
 
 
 @pytest.mark.asyncio
@@ -92,7 +101,8 @@ async def test_yahoo_fundamentals_provider_balance_sheet(
     result = await provider.get_balance_sheet("HDFCBANK")
 
     assert len(result) == 1
-    assert result[0]["Total Assets"] == 5000000.0
+    assert result[0].total_assets == 5000000.0
+    assert result[0].total_liabilities == 4500000.0
 
 
 @pytest.mark.asyncio
@@ -109,7 +119,8 @@ async def test_yahoo_fundamentals_provider_cash_flow(
     result = await provider.get_cash_flow("HDFCBANK")
 
     assert len(result) == 1
-    assert result[0]["Operating Cash Flow"] == 250000.0
+    assert result[0].operating_cash_flow == 250000.0
+    assert result[0].free_cash_flow == 180000.0
 
 
 @pytest.mark.asyncio
@@ -125,8 +136,7 @@ async def test_yahoo_fundamentals_provider_key_ratios(
 
     result = await provider.get_key_ratios("HDFCBANK")
 
-    assert result["marketCap"] == 1500000000000
-    assert result["trailingPE"] == 18.5
-    assert result["forwardPE"] == 17.2
-    assert result["priceToBook"] == 2.4
-    assert result["returnOnEquity"] == 0.145
+    assert result.market_capitalization == 1500000000000
+    assert result.trailing_pe == 18.5
+    assert result.forward_pe == 17.2
+    assert result.price_to_book == 2.4
