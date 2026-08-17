@@ -9,7 +9,10 @@ from backend.app.core.exceptions import (
     DataProviderRetryableError,
     DataProviderUnavailableError,
 )
-from backend.app.core.provider_retry import ProviderRetryPolicy
+from backend.app.core.provider_retry import (
+    ProviderRetryPolicy,
+    RetryPolicy,
+)
 
 
 T = TypeVar("T")
@@ -20,7 +23,7 @@ async def run_provider_call(
     *,
     operation_name: str,
     timeout_seconds: float | None = None,
-    retry_policy: ProviderRetryPolicy | None = None,
+    retry_policy: ProviderRetryPolicy | RetryPolicy | None = None,
 ) -> T:
     """Execute a blocking provider operation with bounded retries.
 
@@ -74,3 +77,4 @@ async def run_provider_call(
         f"Provider operation '{operation_name}' "
         "exhausted its retry policy unexpectedly."
     )
+
