@@ -2,6 +2,7 @@
 
 from backend.app.core.config import get_settings
 from backend.app.core.exceptions import (
+    DataProviderError,
     LLMProviderError,
     MarketDataProviderError,
 )
@@ -86,5 +87,7 @@ async def research(
             status_code=503,
             detail="Research model provider is temporarily unavailable.",
         ) from exc
+
+
 
 

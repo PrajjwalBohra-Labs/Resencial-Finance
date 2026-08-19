@@ -1,4 +1,6 @@
-﻿from datetime import datetime, timezone
+﻿from pydantic import BaseModel
+from backend.app.domain.fundamentals import IncomeStatement, ValuationMetrics
+from datetime import datetime, timezone
 from typing import Any
 
 from backend.app.domain.evidence import (
@@ -55,75 +57,180 @@ class FundamentalEvidenceAdapter:
             "Free Cash Flow",
         ),
     }
-
-    @classmethod
     def _value(
-        cls,
-        row: dict[str, object],
+        self,
+        row: object,
         field: str,
     ) -> float | None:
-        for candidate in cls._MAPPINGS[field]:
-            value = row.get(candidate)
-
-            if value is None:
-                continue
-
-            try:
-                return float(value)
-            except (TypeError, ValueError):
-                return None
-
-        return None
-
-    @classmethod
-    def _period(
-        cls,
-        row: dict[str, object],
-    ) -> FundamentalPeriod:
-        return FundamentalPeriod(
-            period=str(row.get("period", "")),
-            revenue=cls._value(row, "revenue"),
-            net_income=cls._value(row, "net_income"),
-            basic_eps=cls._value(row, "basic_eps"),
-            diluted_eps=cls._value(row, "diluted_eps"),
-            total_assets=cls._value(row, "total_assets"),
-            stockholders_equity=cls._value(
-                row,
+        aliases = {
+            "total_assets": (
+                "total_assets",
+                "Total Assets",
+                "totalAssets",
+            ),
+            "stockholders_equity": (
                 "stockholders_equity",
+                "Stockholders Equity",
+                "Common Stock Equity",
+                "stockholdersEquity",
             ),
-            net_loans=cls._value(row, "net_loans"),
-            operating_cash_flow=cls._value(
-                row,
+            "net_loans": (
+                "net_loans",
+                "Net Loan",
+                "Net Loans",
+                "netLoan",
+                "netLoans",
+            ),
+            "operating_cash_flow": (
                 "operating_cash_flow",
+                "Operating Cash Flow",
+                "operatingCashFlow",
             ),
-            free_cash_flow=cls._value(
-                row,
+            "free_cash_flow": (
                 "free_cash_flow",
+                "Free Cash Flow",
+                "freeCashFlow",
             ),
-        )
+            "revenue": (
+                "revenue",
+                "Revenue",
+                "Total Revenue",
+                "total_revenue",
+                "totalRevenue",
+            ),
+            "net_income": (
+                "net_income",
+                "Net Income",
+                "netIncome",
+            ),
+            "basic_eps": (
+                "basic_eps",
+                "Basic EPS",
+                "basicEps",
+            ),
+            "diluted_eps": (
+                "diluted_eps",
+                "Diluted EPS",
+                "dilutedEps",
+            ),
+        }
+
+        candidates = aliases.get(field, (field,))
+
+        if isinstance(row, BaseModel):
+            value = None
+
+            for candidate in candidates:
+                candidate_value = getattr(row, candidate, None)
+
+                if candidate_value is not None:
+                    value = candidate_value
+                    break
+
+        elif isinstance(row, dict):
+            value = None
+
+            for candidate in candidates:
+                if candidate in row and row[candidate] is not None:
+                    value = row[candidate]
+                    break
+
+        else:
+            value = None
+
+            for candidate in candidates:
+                candidate_value = getattr(row, candidate, None)
+
+                if candidate_value is not None:
+                    value = candidate_value
+                    break
+
+        if value is None:
+            return None
+
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return None
+
+
 
     @staticmethod
     def _growth(
-        latest: float | None,
+        current: float | None,
         previous: float | None,
     ) -> float | None:
-        if latest is None or previous is None or previous == 0:
+        if current is None or previous is None:
             return None
 
-        return ((latest / previous) - 1) * 100
+        if previous == 0:
+            return None
 
+        return ((current - previous) / previous) * 100
     @classmethod
     def _analysis(
         cls,
         *,
         periods: list[FundamentalPeriod],
-        ratios: dict[str, object],
+        ratios: ValuationMetrics | dict[str, object],
     ) -> FundamentalAnalysis:
         latest = periods[0] if periods else None
         previous = periods[1] if len(periods) > 1 else None
 
         def ratio(name: str) -> float | None:
-            value = ratios.get(name)
+            field_map = {
+                "marketCap": (
+                    "market_capitalization",
+                    "marketCap",
+                    "market_cap",
+                ),
+                "enterpriseValue": (
+                    "enterprise_value",
+                    "enterpriseValue",
+                    "enterprise_value",
+                ),
+                "trailingPE": (
+                    "trailing_pe",
+                    "trailingPE",
+                ),
+                "forwardPE": (
+                    "forward_pe",
+                    "forwardPE",
+                ),
+                "priceToBook": (
+                    "price_to_book",
+                    "priceToBook",
+                ),
+                "dividendYield": (
+                    "dividend_yield",
+                    "dividendYield",
+                ),
+            }
+
+            candidates = field_map.get(name, (name,))
+            value = None
+
+            if isinstance(ratios, BaseModel):
+                for field in candidates:
+                    candidate = getattr(ratios, field, None)
+
+                    if candidate is not None:
+                        value = candidate
+                        break
+
+            elif isinstance(ratios, dict):
+                for field in candidates:
+                    if field in ratios and ratios[field] is not None:
+                        value = ratios[field]
+                        break
+
+            else:
+                for field in candidates:
+                    candidate = getattr(ratios, field, None)
+
+                    if candidate is not None:
+                        value = candidate
+                        break
 
             if value is None:
                 return None
@@ -196,11 +303,7 @@ class FundamentalEvidenceAdapter:
             dividend_yield=ratio("dividendYield"),
             market_cap=ratio("marketCap"),
             enterprise_value=ratio("enterpriseValue"),
-            currency=(
-                str(ratios["currency"])
-                if ratios.get("currency") is not None
-                else None
-            ),
+            currency="INR",
             observations=periods,
         )
 
@@ -336,6 +439,53 @@ class FundamentalEvidenceAdapter:
             ),
         ]
 
+    def _period(
+        self,
+        row: object,
+    ) -> FundamentalPeriod:
+        if isinstance(row, BaseModel):
+            period = row.period.period_end.date().isoformat()
+            revenue = getattr(row, "total_revenue", None)
+            net_income = getattr(row, "net_income", None)
+            basic_eps = getattr(row, "basic_eps", None)
+            diluted_eps = getattr(row, "diluted_eps", None)
+        elif isinstance(row, dict):
+            period = str(row.get("period", ""))
+
+            revenue = self._value(row, "revenue")
+            if revenue is None:
+                revenue = self._value(row, "Total Revenue")
+
+            net_income = self._value(row, "net_income")
+            if net_income is None:
+                net_income = self._value(row, "Net Income")
+
+            basic_eps = self._value(row, "basic_eps")
+            if basic_eps is None:
+                basic_eps = self._value(row, "Basic EPS")
+
+            diluted_eps = self._value(row, "diluted_eps")
+            if diluted_eps is None:
+                diluted_eps = self._value(row, "Diluted EPS")
+        else:
+            period = ""
+            revenue = None
+            net_income = None
+            basic_eps = None
+            diluted_eps = None
+
+        return FundamentalPeriod(
+            period=period,
+            revenue=revenue,
+            net_income=net_income,
+            basic_eps=basic_eps,
+            diluted_eps=diluted_eps,
+            total_assets=None,
+            stockholders_equity=None,
+            net_loans=None,
+            operating_cash_flow=None,
+            free_cash_flow=None,
+        )
     async def collect(
         self,
         request: ResearchRequest,
@@ -366,12 +516,20 @@ class FundamentalEvidenceAdapter:
             ]
 
             balance_periods = {
-                str(row.get("period")): row
+                (
+                    row.period.period_end.date().isoformat()
+                    if isinstance(row, BaseModel)
+                    else str(row.get("period", ""))
+                ): row
                 for row in balance
             }
 
             cash_flow_periods = {
-                str(row.get("period")): row
+                (
+                    row.period.period_end.date().isoformat()
+                    if isinstance(row, BaseModel)
+                    else str(row.get("period", ""))
+                ): row
                 for row in cash_flow
             }
 
@@ -470,6 +628,21 @@ class FundamentalEvidenceAdapter:
             )
 
         return evidence
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
