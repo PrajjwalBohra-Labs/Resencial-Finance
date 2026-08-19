@@ -1,4 +1,4 @@
-﻿import asyncio
+import asyncio
 from datetime import datetime
 from typing import Any
 
@@ -271,6 +271,7 @@ class YahooFinanceFundamentalsProvider(FundamentalsProvider):
             fetch,
             operation_name="yahoo_finance.fundamentals.key_ratios",
         )
+
 
 
 

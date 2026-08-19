@@ -1,4 +1,4 @@
-﻿from backend.app.schemas.common import DataFreshness, Source
+from backend.app.schemas.common import DataFreshness, Source
 from backend.app.schemas.market import (
     HistoricalPrice,
     HistoricalPricesResponse,
@@ -16,3 +16,8 @@ __all__ = [
     "ReturnAnalysis",
     "Source",
 ]
+
+from backend.app.schemas.fundamentals import (
+    FundamentalAnalysis,
+    FundamentalPeriod,
+)
