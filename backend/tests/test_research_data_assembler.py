@@ -1,4 +1,4 @@
-from datetime import date
+﻿from datetime import date
 
 import pytest
 
@@ -440,12 +440,12 @@ async def test_fundamental_evidence_contains_compact_latest_metrics() -> None:
     content = context.evidence[0].content
 
     assert "Latest income statement:" in content
-    assert "Total Revenue: 1000000.0" in content
-    assert "Net Income: 200000.0" in content
+    assert "Total Revenue: ₹10,00,000" in content
+    assert "Net Income: ₹2,00,000" in content
     assert "Latest balance sheet:" in content
-    assert "Total Assets: 5000000.0" in content
+    assert "Total Assets: ₹50,00,000" in content
     assert "Latest cash flow:" in content
-    assert "Operating Cash Flow: 250000.0" in content
+    assert "Operating Cash Flow: ₹2,50,000" in content
     assert "Key ratios:" in content
     assert "Trailing P/E: 18.5" in content
     assert "Price/book: 2.4" in content
@@ -538,3 +538,5 @@ async def test_fundamental_evidence_preserves_dividend_yield_percentage() -> Non
     assert "Dividend yield: 179.0%" not in (
         context.evidence[0].content
     )
+
+

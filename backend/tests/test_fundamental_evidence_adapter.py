@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+﻿from datetime import datetime, timezone
 
 import pytest
 
@@ -118,7 +118,10 @@ async def test_fundamental_evidence_is_compact_and_deterministic() -> None:
     assert "Trailing P/E: 15.5" in item.content
     assert "ROE: 15%" in item.content
 
-    assert "1200.0" in item.content
-    assert "1000.0" in item.content
+    assert "Total Revenue: ₹1,200" in item.content
+    assert "Net Income: ₹240" in item.content
 
     assert "Fake" not in item.content
+
+
+

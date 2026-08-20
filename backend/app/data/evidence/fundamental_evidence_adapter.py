@@ -48,7 +48,12 @@ class FundamentalEvidenceAdapter:
             "Common Stock Equity",
         ),
         "net_loans": (
+            "net_loan",
+            "net_loans",
             "Net Loan",
+            "Net Loans",
+            "netLoan",
+            "netLoans",
         ),
         "operating_cash_flow": (
             "Operating Cash Flow",
@@ -321,12 +326,49 @@ class FundamentalEvidenceAdapter:
         return str(value)
 
     @staticmethod
-    def _format_financial_value(value: float | None) -> str:
-        """Format financial statement values while preserving decimal precision."""
+    def _format_indian_number(value: float) -> str:
+        """Format a numeric value using the Indian numbering system."""
+        number = f"{float(value):.1f}"
+
+        integer_part, decimal_part = number.split(".")
+
+        sign = ""
+        if integer_part.startswith("-"):
+            sign = "-"
+            integer_part = integer_part[1:]
+
+        if len(integer_part) <= 3:
+            grouped = integer_part
+        else:
+            last_three = integer_part[-3:]
+            remaining = integer_part[:-3]
+
+            groups = []
+
+            while len(remaining) > 2:
+                groups.insert(0, remaining[-2:])
+                remaining = remaining[:-2]
+
+            if remaining:
+                groups.insert(0, remaining)
+
+            grouped = ",".join(groups + [last_three])
+
+        if decimal_part == "0":
+            return f"{sign}{grouped}"
+
+        return f"{sign}{grouped}.{decimal_part}"
+
+    @classmethod
+    def _format_financial_value(
+        cls,
+        value: float | None,
+    ) -> str:
+        """Format financial values using Indian comma grouping."""
         if value is None:
             return "insufficient data"
 
-        return f"{float(value):.1f}"
+        return f"₹{cls._format_indian_number(value)}"
     @classmethod
     def _format_analysis(
         cls,
@@ -628,6 +670,8 @@ class FundamentalEvidenceAdapter:
             )
 
         return evidence
+
+
 
 
 
