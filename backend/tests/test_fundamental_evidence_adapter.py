@@ -117,11 +117,14 @@ async def test_fundamental_evidence_is_compact_and_deterministic() -> None:
     assert "Basic EPS growth: 20%" in item.content
     assert "Trailing P/E: 15.5" in item.content
     assert "ROE: 15%" in item.content
+    assert "Market capitalization: ₹15,00,000" in item.content
+    assert "Enterprise value: ₹17,00,000" in item.content
 
     assert "Total Revenue: ₹1,200" in item.content
     assert "Net Income: ₹240" in item.content
 
     assert "Fake" not in item.content
+
 
 
 

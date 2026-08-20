@@ -245,6 +245,55 @@ class FundamentalEvidenceAdapter:
             except (TypeError, ValueError):
                 return None
 
+        yahoo_roe = ratio("returnOnEquity")
+        yahoo_roa = ratio("returnOnAssets")
+        yahoo_profit_margin = ratio("profitMargins")
+
+        calculated_profit_margin = (
+            None
+            if latest is None
+            or latest.net_income is None
+            or latest.revenue is None
+            or latest.revenue == 0
+            else (latest.net_income / latest.revenue) * 100
+        )
+
+        calculated_roe = None
+        if (
+            latest is not None
+            and previous is not None
+            and latest.net_income is not None
+            and latest.stockholders_equity is not None
+            and previous.stockholders_equity is not None
+        ):
+            average_equity = (
+                latest.stockholders_equity
+                + previous.stockholders_equity
+            ) / 2
+
+            if average_equity != 0:
+                calculated_roe = (
+                    latest.net_income / average_equity
+                ) * 100
+
+        calculated_roa = None
+        if (
+            latest is not None
+            and previous is not None
+            and latest.net_income is not None
+            and latest.total_assets is not None
+            and previous.total_assets is not None
+        ):
+            average_assets = (
+                latest.total_assets
+                + previous.total_assets
+            ) / 2
+
+            if average_assets != 0:
+                calculated_roa = (
+                    latest.net_income / average_assets
+                ) * 100
+
         return FundamentalAnalysis(
             latest_period=latest.period if latest else None,
             previous_period=previous.period if previous else None,
@@ -276,19 +325,19 @@ class FundamentalEvidenceAdapter:
             forward_pe=ratio("forwardPE"),
             price_to_book=ratio("priceToBook"),
             return_on_equity=(
-                None
-                if ratio("returnOnEquity") is None
-                else ratio("returnOnEquity") * 100
+                yahoo_roe * 100
+                if yahoo_roe is not None
+                else calculated_roe
             ),
             return_on_assets=(
-                None
-                if ratio("returnOnAssets") is None
-                else ratio("returnOnAssets") * 100
+                yahoo_roa * 100
+                if yahoo_roa is not None
+                else calculated_roa
             ),
             profit_margin=(
-                None
-                if ratio("profitMargins") is None
-                else ratio("profitMargins") * 100
+                yahoo_profit_margin * 100
+                if yahoo_profit_margin is not None
+                else calculated_profit_margin
             ),
             operating_margin=(
                 None
@@ -399,8 +448,14 @@ class FundamentalEvidenceAdapter:
             f"Reported revenue growth: {cls._format_number(analysis.revenue_growth_reported)}%",
             f"Reported earnings growth: {cls._format_number(analysis.earnings_growth_reported)}%",
             f"Dividend yield: {cls._format_number(analysis.dividend_yield)}%",
-            f"Market capitalization: {cls._format_number(analysis.market_cap)}",
-            f"Enterprise value: {cls._format_number(analysis.enterprise_value)}",
+            (
+                "Market capitalization: "
+                f"{cls._format_financial_value(analysis.market_cap)}"
+            ),
+            (
+                "Enterprise value: "
+                f"{cls._format_financial_value(analysis.enterprise_value)}"
+            ),
         ]
 
         return "\n".join(lines)
@@ -670,6 +725,8 @@ class FundamentalEvidenceAdapter:
             )
 
         return evidence
+
+
 
 
 
