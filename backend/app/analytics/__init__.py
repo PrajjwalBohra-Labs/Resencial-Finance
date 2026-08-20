@@ -1,4 +1,5 @@
-﻿from backend.app.analytics.growth import (
+﻿from backend.app.analytics.findings import generate_growth_findings
+from backend.app.analytics.growth import (
     calculate_cagr,
     calculate_growth_acceleration,
     calculate_growth_series,
@@ -30,4 +31,5 @@ __all__ = [
     "calculate_percentile",
     "calculate_skewness",
     "calculate_standard_deviation",
+    "generate_growth_findings",
 ]
