@@ -1,4 +1,4 @@
-from backend.app.domain.llm import (
+﻿from backend.app.domain.llm import (
     ChatMessage,
     LLMProvider,
     LLMRequest,
@@ -126,7 +126,9 @@ class ResearchEngine:
             provider=response.provider,
             evidence_count=len(context.evidence),
             evidence=context.evidence,
+            analytical_findings=context.analytical_findings,
             usage=total_usage,
             validation=validation,
         )
+
 

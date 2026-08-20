@@ -1,4 +1,4 @@
-from datetime import date, datetime, timezone
+﻿from datetime import date, datetime, timezone
 from typing import Any
 
 from backend.app.domain.evidence_factory import create_market_evidence
@@ -7,6 +7,7 @@ from backend.app.schemas.market import HistoricalPrice
 from backend.app.services.market_analysis_service import MarketAnalysisService
 from backend.app.services.fundamentals_service import FundamentalsService
 from backend.app.services.market_service import MarketService
+from backend.app.services.research_analytics_service import ResearchAnalyticsService
 from backend.app.data.evidence.fundamental_evidence_adapter import FundamentalEvidenceAdapter
 
 
@@ -198,6 +199,15 @@ class ResearchDataAssembler:
 
             context.add_evidence(evidence)
 
+            findings = ResearchAnalyticsService.analyse_prices(
+                symbol=symbol,
+                prices=prices,
+            )
+
+            for finding in findings:
+                context.add_finding(finding)
+
         return context
+
 
 

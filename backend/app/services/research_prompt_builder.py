@@ -1,4 +1,5 @@
-from backend.app.domain.research import ResearchContext
+﻿from backend.app.domain.research import ResearchContext
+from backend.app.services.analytical_finding_formatter import format_analytical_findings
 
 
 class ResearchPromptBuilder:
@@ -102,6 +103,10 @@ that are relevant to the question and available evidence.
         else:
             evidence_text = "No research evidence is currently available."
 
+        analytical_findings_text = format_analytical_findings(
+            context.analytical_findings
+        )
+
         user_prompt = "\n".join(
             [
                 "Research question:",
@@ -129,6 +134,9 @@ that are relevant to the question and available evidence.
                 "Research evidence:",
                 evidence_text,
                 "",
+                "Deterministic analytical findings:",
+                analytical_findings_text,
+                "",
                 "Using only the evidence supplied above, produce a thorough "
                 "research response to the user's question. Treat all backend-"
                 "calculated metrics as authoritative and do not infer causes "
@@ -137,6 +145,7 @@ that are relevant to the question and available evidence.
         )
 
         return system_prompt, user_prompt
+
 
 
 
