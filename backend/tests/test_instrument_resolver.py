@@ -1,4 +1,5 @@
-﻿import pytest
+from backend.app.instruments import resolver
+import pytest
 
 from backend.app.instruments import (
     InstrumentResolutionError,
@@ -83,3 +84,21 @@ def test_unsupported_exchange_is_rejected() -> None:
             symbol="HDFCBANK",
             exchange="NYSE",
         )
+
+
+def test_resolver_preserves_supported_index_symbols() -> None:
+    resolved = resolver.resolve_equity(
+        symbol="^NSEI",
+        exchange="NSE",
+    )
+
+    assert resolved.provider_symbol == "^NSEI"
+
+
+def test_resolver_preserves_bse_index_symbol() -> None:
+    resolved = resolver.resolve_equity(
+        symbol="^BSESN",
+        exchange="BSE",
+    )
+
+    assert resolved.provider_symbol == "^BSESN"

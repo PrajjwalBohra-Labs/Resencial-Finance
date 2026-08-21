@@ -130,7 +130,7 @@ def test_research_endpoint_integrates_evidence_and_llm() -> None:
         )
         assert body["model"] == "integration-test-model"
         assert body["provider"] == "fake-llm"
-        assert body["evidence_count"] == 1
+        assert body["evidence_count"] == 2
 
     finally:
         app.dependency_overrides.clear()

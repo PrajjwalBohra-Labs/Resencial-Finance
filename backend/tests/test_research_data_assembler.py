@@ -68,7 +68,7 @@ async def test_assemble_market_context() -> None:
     )
 
     assert context.request == request
-    assert len(context.evidence) == 1
+    assert len(context.evidence) == 2
 
     evidence = context.evidence[0]
 
@@ -96,8 +96,8 @@ async def test_assemble_market_context_supports_multiple_symbols() -> None:
         end_date=date(2026, 8, 11),
     )
 
-    assert len(context.evidence) == 2
-    assert len(market_service.calls) == 2
+    assert len(context.evidence) == 3
+    assert len(market_service.calls) == 3
 
     assert market_service.calls[0]["symbol"] == "HDFCBANK"
     assert market_service.calls[1]["symbol"] == "ICICIBANK"
@@ -193,7 +193,7 @@ async def test_assemble_uses_request_date_range() -> None:
     context = await assembler.assemble(request)
 
     assert context.request == request
-    assert len(context.evidence) == 1
+    assert len(context.evidence) == 2
 
 
 @pytest.mark.asyncio
@@ -244,7 +244,7 @@ async def test_assemble_uses_request_date_range() -> None:
     context = await assembler.assemble(request)
 
     assert context.request == request
-    assert len(context.evidence) == 1
+    assert len(context.evidence) == 2
 
 
 @pytest.mark.asyncio
@@ -296,7 +296,7 @@ async def test_assemble_market_context_includes_deterministic_market_metrics() -
         end_date=date(2026, 8, 11),
     )
 
-    assert len(context.evidence) == 1
+    assert len(context.evidence) == 2
 
     content = context.evidence[0].content
 
@@ -409,7 +409,7 @@ async def test_market_focus_does_not_add_fundamental_evidence() -> None:
 
     context = await assembler.assemble(request)
 
-    assert len(context.evidence) == 1
+    assert len(context.evidence) == 2
     assert all(
         item.evidence_type.value != "fundamental"
         for item in context.evidence
@@ -540,3 +540,33 @@ async def test_fundamental_evidence_preserves_dividend_yield_percentage() -> Non
     )
 
 
+
+
+@pytest.mark.asyncio
+async def test_assemble_market_context_adds_one_shared_benchmark() -> None:
+    market_service = FakeMarketService()
+    assembler = ResearchDataAssembler(market_service)
+
+    request = ResearchRequest(
+        question="Compare HDFC Bank and ICICI Bank against the market.",
+        symbols=["HDFCBANK", "ICICIBANK"],
+        exchange="NSE",
+        focus=ResearchFocus.COMPARISON,
+    )
+
+    context = await assembler.assemble_market_context(
+        request=request,
+        start_date=date(2026, 8, 10),
+        end_date=date(2026, 8, 11),
+    )
+
+    assert len(context.evidence) == 3
+
+    symbols = [
+        evidence.symbol
+        for evidence in context.evidence
+    ]
+
+    assert symbols.count("HDFCBANK") == 1
+    assert symbols.count("ICICIBANK") == 1
+    assert symbols.count("^NSEI") == 1

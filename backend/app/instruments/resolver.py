@@ -36,16 +36,28 @@ class InstrumentResolver:
                 f"Unsupported exchange '{normalized_exchange}'."
             )
 
-        suffix = {
-            "NSE": ".NS",
-            "BSE": ".BO",
-        }[normalized_exchange]
+        index_symbols = {
+            "^NSEI",
+            "^NSEBANK",
+            "^CNX500",
+            "^CNX100",
+            "^CNXIT",
+            "^BSESN",
+        }
 
-        provider_symbol = (
-            normalized_symbol
-            if normalized_symbol.endswith(suffix)
-            else f"{normalized_symbol}{suffix}"
-        )
+        if normalized_symbol in index_symbols:
+            provider_symbol = normalized_symbol
+        else:
+            suffix = {
+                "NSE": ".NS",
+                "BSE": ".BO",
+            }[normalized_exchange]
+
+            provider_symbol = (
+                normalized_symbol
+                if normalized_symbol.endswith(suffix)
+                else f"{normalized_symbol}{suffix}"
+            )
 
         return ResolvedInstrument(
             symbol=normalized_symbol,

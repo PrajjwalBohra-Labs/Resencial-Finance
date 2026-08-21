@@ -8,6 +8,9 @@ from backend.app.services.market_analysis_service import MarketAnalysisService
 from backend.app.services.fundamentals_service import FundamentalsService
 from backend.app.services.market_service import MarketService
 from backend.app.services.research_analytics_service import ResearchAnalyticsService
+from backend.app.services.benchmark_resolver import benchmark_resolver
+from backend.app.services.relationship_analysis_service import RelationshipAnalysisService
+from backend.app.services.relationship_finding_service import RelationshipFindingService
 from backend.app.data.evidence.fundamental_evidence_adapter import FundamentalEvidenceAdapter
 
 
@@ -164,6 +167,11 @@ class ResearchDataAssembler:
 
         exchange = request.exchange or "NSE"
 
+        asset_prices_by_symbol: dict[str, list[HistoricalPrice]] = {}
+
+        # ------------------------------------------------------------
+        # 1. Collect asset market evidence and deterministic findings.
+        # ------------------------------------------------------------
         for symbol in request.symbols:
             raw_prices = await self._market_service.get_historical_prices(
                 symbol=symbol,
@@ -177,7 +185,11 @@ class ResearchDataAssembler:
             if not prices:
                 continue
 
-            analysis = MarketAnalysisService.analyse_prices(prices)
+            asset_prices_by_symbol[symbol] = prices
+
+            analysis = MarketAnalysisService.analyse_prices(
+                prices
+            )
 
             evidence = create_market_evidence(
                 symbol=symbol,
@@ -207,7 +219,79 @@ class ResearchDataAssembler:
             for finding in findings:
                 context.add_finding(finding)
 
+        # ------------------------------------------------------------
+        # 2. Resolve and fetch the exchange benchmark exactly once.
+        # ------------------------------------------------------------
+        if not asset_prices_by_symbol:
+            return context
+
+        benchmark = benchmark_resolver.resolve(exchange)
+
+        benchmark_raw_prices = (
+            await self._market_service.get_historical_prices(
+                symbol=benchmark.symbol,
+                exchange=benchmark.exchange,
+                start_date=start_date,
+                end_date=end_date,
+            )
+        )
+
+        benchmark_prices = self._normalize_prices(
+            benchmark_raw_prices
+        )
+
+        if len(benchmark_prices) < 2:
+            return context
+
+        benchmark_analysis = MarketAnalysisService.analyse_prices(
+            benchmark_prices
+        )
+
+        benchmark_evidence = create_market_evidence(
+            symbol=benchmark.symbol,
+            exchange=benchmark.exchange,
+            prices=benchmark_prices,
+            provider=self._market_service.provider_name,
+            source_name=self._market_service.provider_name,
+            retrieved_at=datetime.now(timezone.utc),
+            analysis=benchmark_analysis,
+        )
+
+        benchmark_evidence = benchmark_evidence.model_copy(
+            update={
+                "title": (
+                    f"{benchmark.name} benchmark market history"
+                ),
+                "content": (
+                    f"{benchmark_evidence.content}\n\n"
+                    f"Benchmark rationale: {benchmark.rationale}"
+                ),
+            }
+        )
+
+        context.add_evidence(benchmark_evidence)
+
+        # ------------------------------------------------------------
+        # 3. Compare every collected asset against the same benchmark.
+        # ------------------------------------------------------------
+        for symbol, prices in asset_prices_by_symbol.items():
+            relationship = RelationshipAnalysisService.analyse(
+                prices,
+                benchmark_prices,
+            )
+
+            relationship_findings = RelationshipFindingService.build(
+                asset_symbol=symbol,
+                benchmark_symbol=benchmark.symbol,
+                relationship=relationship,
+                asset_evidence_ref=f"market:{symbol}",
+                benchmark_evidence_ref=(
+                    f"benchmark:{benchmark.symbol}"
+                ),
+            )
+
+            for relationship_finding in relationship_findings:
+                context.add_finding(relationship_finding)
+
         return context
-
-
 

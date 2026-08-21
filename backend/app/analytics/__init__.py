@@ -18,6 +18,12 @@ from backend.app.analytics.statistics import (
 )
 
 __all__ = [
+    "calculate_rolling_correlation",
+    "calculate_relative_performance",
+    "calculate_covariance",
+    "calculate_correlation",
+    "calculate_beta",
+    "calculate_benchmark_comparison",
     "calculate_cagr",
     "calculate_growth_acceleration",
     "calculate_growth_series",
@@ -33,3 +39,12 @@ __all__ = [
     "calculate_standard_deviation",
     "generate_growth_findings",
 ]
+
+from backend.app.analytics.relationships import (
+    calculate_benchmark_comparison,
+    calculate_beta,
+    calculate_correlation,
+    calculate_covariance,
+    calculate_relative_performance,
+    calculate_rolling_correlation,
+)
