@@ -6,7 +6,20 @@ from backend.app.core.exceptions import (
     LLMProviderError,
     MarketDataProviderError,
 )
+from backend.app.data.evidence.bond_evidence_adapter import (
+    BondEvidenceAdapter,
+)
+from backend.app.data.evidence.filing_evidence_adapter import (
+    FilingEvidenceAdapter,
+)
+from backend.app.data.evidence.macro_evidence_adapter import (
+    MacroEvidenceAdapter,
+)
+from backend.app.data.evidence.news_evidence_adapter import (
+    NewsEvidenceAdapter,
+)
 from backend.app.data.providers import (
+    InMemoryResearchProvider,
     YahooFinanceFundamentalsProvider,
     YahooFinanceMarketProvider,
 )
@@ -34,9 +47,31 @@ def get_research_orchestrator() -> ResearchOrchestrator:
         provider=YahooFinanceFundamentalsProvider(),
     )
 
+    research_provider = InMemoryResearchProvider()
+
+    news_evidence_port = NewsEvidenceAdapter(
+        provider=research_provider,
+    )
+
+    filing_evidence_port = FilingEvidenceAdapter(
+        provider=research_provider,
+    )
+
+    macro_evidence_port = MacroEvidenceAdapter(
+        provider=research_provider,
+    )
+
+    bond_evidence_port = BondEvidenceAdapter(
+        provider=research_provider,
+    )
+
     evidence_assembler = ResearchDataAssembler(
         market_service=market_service,
         fundamentals_service=fundamentals_service,
+        news_evidence_port=news_evidence_port,
+        filing_evidence_port=filing_evidence_port,
+        macro_evidence_port=macro_evidence_port,
+        bond_evidence_port=bond_evidence_port,
     )
 
     llm_provider = OllamaProvider(

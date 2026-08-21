@@ -2,7 +2,17 @@
 from typing import Any
 
 from backend.app.domain.evidence_factory import create_market_evidence
-from backend.app.domain.research import ResearchContext, ResearchRequest
+from backend.app.domain.research import (
+    ResearchContext,
+    ResearchFocus,
+    ResearchRequest,
+)
+from backend.app.ports import (
+    BondEvidencePort,
+    FilingEvidencePort,
+    MacroEvidencePort,
+    NewsEvidencePort,
+)
 from backend.app.schemas.market import HistoricalPrice
 from backend.app.services.market_analysis_service import MarketAnalysisService
 from backend.app.services.fundamentals_service import FundamentalsService
@@ -21,9 +31,18 @@ class ResearchDataAssembler:
         self,
         market_service: MarketService,
         fundamentals_service: FundamentalsService | None = None,
+        *,
+        news_evidence_port: NewsEvidencePort | None = None,
+        filing_evidence_port: FilingEvidencePort | None = None,
+        macro_evidence_port: MacroEvidencePort | None = None,
+        bond_evidence_port: BondEvidencePort | None = None,
     ) -> None:
         self._market_service = market_service
         self._fundamentals_service = fundamentals_service
+        self._news_evidence_port = news_evidence_port
+        self._filing_evidence_port = filing_evidence_port
+        self._macro_evidence_port = macro_evidence_port
+        self._bond_evidence_port = bond_evidence_port
 
     @staticmethod
     def _normalize_prices(
@@ -105,6 +124,81 @@ class ResearchDataAssembler:
             ]
         )
 
+    async def _collect_research_evidence(
+        self,
+        request: ResearchRequest,
+    ) -> list:
+        evidence = []
+
+        if (
+            request.focus
+            in {
+                ResearchFocus.GENERAL,
+                ResearchFocus.FUNDAMENTAL,
+                ResearchFocus.VALUATION,
+            }
+            and self._fundamentals_service is not None
+        ):
+            adapter = FundamentalEvidenceAdapter(
+                self._fundamentals_service,
+            )
+            evidence.extend(
+                await adapter.collect(request)
+            )
+
+        if (
+            request.focus
+            in {
+                ResearchFocus.GENERAL,
+                ResearchFocus.MARKET,
+                ResearchFocus.RISK,
+                ResearchFocus.COMPARISON,
+            }
+            and self._news_evidence_port is not None
+        ):
+            evidence.extend(
+                await self._news_evidence_port.collect(request)
+            )
+
+        if (
+            request.focus
+            in {
+                ResearchFocus.GENERAL,
+                ResearchFocus.FUNDAMENTAL,
+                ResearchFocus.VALUATION,
+            }
+            and self._filing_evidence_port is not None
+        ):
+            evidence.extend(
+                await self._filing_evidence_port.collect(request)
+            )
+
+        if (
+            request.focus
+            in {
+                ResearchFocus.GENERAL,
+                ResearchFocus.MACRO,
+            }
+            and self._macro_evidence_port is not None
+        ):
+            evidence.extend(
+                await self._macro_evidence_port.collect(request)
+            )
+
+        if (
+            request.focus
+            in {
+                ResearchFocus.GENERAL,
+                ResearchFocus.FIXED_INCOME,
+            }
+            and self._bond_evidence_port is not None
+        ):
+            evidence.extend(
+                await self._bond_evidence_port.collect(request)
+            )
+
+        return evidence
+
     async def assemble(
         self,
         request: ResearchRequest,
@@ -132,22 +226,8 @@ class ResearchDataAssembler:
                 end_date=request.end_date,
             )
 
-        if (
-            self._fundamentals_service is not None
-            and request.focus.value in {
-                "general",
-                "fundamental",
-                "valuation",
-            }
-        ):
-            adapter = FundamentalEvidenceAdapter(
-                self._fundamentals_service
-            )
-
-            fundamental_evidence = await adapter.collect(request)
-
-            for item in fundamental_evidence:
-                context.add_evidence(item)
+        for item in await self._collect_research_evidence(request):
+            context.add_evidence(item)
 
         return context
 

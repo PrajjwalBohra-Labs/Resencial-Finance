@@ -8,6 +8,7 @@
 from backend.app.data.providers.bonds import BondDataProvider
 from backend.app.data.providers.filings import FilingsProvider
 from backend.app.data.providers.fundamentals import FundamentalsProvider
+from backend.app.data.providers.in_memory_research import InMemoryResearchProvider
 from backend.app.data.providers.macro import MacroDataProvider
 from backend.app.data.providers.market import MarketDataProvider
 from backend.app.data.providers.news import NewsProvider
@@ -25,6 +26,7 @@ __all__ = [
     "DataProviderUnavailableError",
     "FilingsProvider",
     "FundamentalsProvider",
+    "InMemoryResearchProvider",
     "MacroDataProvider",
     "MarketDataProvider",
     "NewsProvider",
