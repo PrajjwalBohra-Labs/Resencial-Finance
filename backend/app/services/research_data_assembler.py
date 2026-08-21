@@ -1,6 +1,7 @@
 ﻿from datetime import date, datetime, timezone
 from typing import Any
 
+from backend.app.domain.evidence import EvidenceType
 from backend.app.domain.evidence_factory import create_market_evidence
 from backend.app.domain.research import (
     ResearchContext,
@@ -193,9 +194,24 @@ class ResearchDataAssembler:
             }
             and self._bond_evidence_port is not None
         ):
-            evidence.extend(
-                await self._bond_evidence_port.collect(request)
-            )
+            bond_evidence = await self._bond_evidence_port.collect(request)
+
+            if request.focus == ResearchFocus.FIXED_INCOME:
+                bond_evidence = [
+                    item.model_copy(
+                        update={
+                            "evidence_type": EvidenceType.REGULATORY,
+                        }
+                    )
+                    if (
+                        item.title.endswith(" bond yield")
+                        and item.evidence_type == EvidenceType.MACRO
+                    )
+                    else item
+                    for item in bond_evidence
+                ]
+
+            evidence.extend(bond_evidence)
 
         return evidence
 
@@ -205,11 +221,15 @@ class ResearchDataAssembler:
     ) -> ResearchContext:
         context = ResearchContext(request=request)
 
-        if not request.symbols:
+        if (
+            not request.symbols
+            and request.focus == ResearchFocus.GENERAL
+        ):
             return context
 
         if (
-            request.focus.value in {
+            request.symbols
+            and request.focus.value in {
                 "general",
                 "market",
                 "comparison",
