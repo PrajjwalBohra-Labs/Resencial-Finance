@@ -1,7 +1,8 @@
-﻿from abc import abstractmethod
+from abc import abstractmethod
 from datetime import date
 
 from backend.app.data.providers.base import DataProvider
+from backend.app.domain.research_sources import MacroObservation
 
 
 class MacroDataProvider(DataProvider):
@@ -13,7 +14,7 @@ class MacroDataProvider(DataProvider):
         series_name: str,
         start_date: date | None = None,
         end_date: date | None = None,
-    ) -> list[dict[str, object]]:
+    ) -> list[MacroObservation]:
         """Return a normalized macroeconomic time series."""
         raise NotImplementedError
 
@@ -21,6 +22,6 @@ class MacroDataProvider(DataProvider):
     async def get_latest(
         self,
         series_name: str,
-    ) -> dict[str, object] | None:
+    ) -> MacroObservation | None:
         """Return the latest available observation."""
         raise NotImplementedError

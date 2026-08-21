@@ -1,6 +1,7 @@
-﻿from abc import abstractmethod
+from abc import abstractmethod
 
 from backend.app.data.providers.base import DataProvider
+from backend.app.domain.research_sources import BondRecord, BondYieldRecord
 
 
 class BondDataProvider(DataProvider):
@@ -10,7 +11,7 @@ class BondDataProvider(DataProvider):
     async def get_bond(
         self,
         identifier: str,
-    ) -> dict[str, object] | None:
+    ) -> BondRecord | None:
         """Return normalized bond information."""
         raise NotImplementedError
 
@@ -18,7 +19,7 @@ class BondDataProvider(DataProvider):
     async def get_bond_yield(
         self,
         identifier: str,
-    ) -> dict[str, object] | None:
+    ) -> BondYieldRecord | None:
         """Return current or latest available bond-yield information."""
         raise NotImplementedError
 
@@ -26,6 +27,6 @@ class BondDataProvider(DataProvider):
     async def search_bonds(
         self,
         query: str,
-    ) -> list[dict[str, object]]:
+    ) -> list[BondRecord]:
         """Search available fixed-income instruments."""
         raise NotImplementedError
