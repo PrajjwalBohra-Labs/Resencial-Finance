@@ -49,6 +49,14 @@ class FakeMarketProvider(MarketDataProvider):
                 close=755.0,
                 volume=1200000,
             ),
+            HistoricalPrice(
+                date="2026-08-12",
+                open=755.0,
+                high=762.0,
+                low=753.0,
+                close=760.0,
+                volume=1300000,
+            ),
         ]
 
     async def get_equity(self, symbol: str):
@@ -131,6 +139,34 @@ def test_research_endpoint_integrates_evidence_and_llm() -> None:
         assert body["model"] == "integration-test-model"
         assert body["provider"] == "fake-llm"
         assert body["evidence_count"] == 2
+
+        assert body["analytical_findings"]
+
+        relationship_findings = [
+            finding
+            for finding in body["analytical_findings"]
+            if finding["category"] == "relationship"
+        ]
+
+        assert relationship_findings
+
+        metrics = {
+            finding["metric"]
+            for finding in relationship_findings
+        }
+
+        assert any(
+            "correlation" in metric
+            for metric in metrics
+        )
+        assert any(
+            "beta" in metric
+            for metric in metrics
+        )
+        assert any(
+            "relative performance" in metric
+            for metric in metrics
+        )
 
     finally:
         app.dependency_overrides.clear()
