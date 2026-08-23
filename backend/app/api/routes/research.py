@@ -1,4 +1,4 @@
-﻿from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from backend.app.core.config import get_settings
 from backend.app.core.exceptions import (
@@ -19,9 +19,9 @@ from backend.app.data.evidence.news_evidence_adapter import (
     NewsEvidenceAdapter,
 )
 from backend.app.data.providers import (
-    InMemoryResearchProvider,
     YahooFinanceFundamentalsProvider,
     YahooFinanceMarketProvider,
+    build_news_provider,
 )
 from backend.app.domain.research import ResearchAnswer, ResearchRequest
 from backend.app.instruments import InstrumentResolutionError, resolver
@@ -47,22 +47,22 @@ def get_research_orchestrator() -> ResearchOrchestrator:
         provider=YahooFinanceFundamentalsProvider(),
     )
 
-    research_provider = InMemoryResearchProvider()
+    news_provider = build_news_provider(settings)
 
     news_evidence_port = NewsEvidenceAdapter(
-        provider=research_provider,
+        provider=news_provider,
     )
 
     filing_evidence_port = FilingEvidenceAdapter(
-        provider=research_provider,
+        provider=news_provider,
     )
 
     macro_evidence_port = MacroEvidenceAdapter(
-        provider=research_provider,
+        provider=news_provider,
     )
 
     bond_evidence_port = BondEvidenceAdapter(
-        provider=research_provider,
+        provider=news_provider,
     )
 
     evidence_assembler = ResearchDataAssembler(
@@ -122,7 +122,3 @@ async def research(
             status_code=503,
             detail="Research model provider is temporarily unavailable.",
         ) from exc
-
-
-
-

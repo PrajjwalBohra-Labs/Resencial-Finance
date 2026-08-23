@@ -3,13 +3,12 @@ from typing import Any
 
 import httpx
 
+from backend.app.core.config import get_settings
 from backend.app.core.exceptions import (
     DataProviderResponseError,
     DataProviderRetryableError,
     DataProviderUnavailableError,
 )
-from backend.app.core.provider_execution import run_provider_call
-from backend.app.core.config import get_settings
 from backend.app.data.providers.news import NewsProvider
 from backend.app.domain.research_sources import NewsRecord
 
@@ -48,7 +47,7 @@ class HttpNewsProvider(NewsProvider):
         return headers
 
     @staticmethod
-    def _parse_date(value: Any) -> datetime | None:
+    def _parse_datetime(value: Any) -> datetime | None:
         if value is None:
             return None
 
@@ -77,18 +76,24 @@ class HttpNewsProvider(NewsProvider):
 
         title = item.get("title")
         source_name = item.get("source_name") or item.get("source")
-        retrieved_at = cls._parse_date(item.get("retrieved_at"))
-        published_at = cls._parse_date(item.get("published_at"))
 
         if not title or not source_name:
             raise DataProviderResponseError(
                 "News provider returned an article missing required metadata."
             )
 
+        retrieved_at = cls._parse_datetime(
+            item.get("retrieved_at")
+        )
+
         if retrieved_at is None:
             retrieved_at = datetime.now(timezone.utc)
 
-        content = (
+        published_at = cls._parse_datetime(
+            item.get("published_at")
+        )
+
+        summary = (
             item.get("summary")
             or item.get("content")
             or ""
@@ -100,9 +105,12 @@ class HttpNewsProvider(NewsProvider):
             url=item.get("url"),
             published_at=published_at,
             retrieved_at=retrieved_at,
-            provider=str(item.get("provider") or "http_news"),
+            provider=str(
+                item.get("provider")
+                or "http_news"
+            ),
             symbol=item.get("symbol"),
-            summary=str(content),
+            summary=str(summary),
             category=item.get("category"),
         )
 
@@ -112,87 +120,89 @@ class HttpNewsProvider(NewsProvider):
         path: str,
         params: dict[str, Any],
     ) -> list[NewsRecord]:
-        async def fetch() -> list[NewsRecord]:
-            client = self._client
-            owns_client = False
+        client = self._client
+        owns_client = False
 
-            if client is None:
-                settings = get_settings()
-                client = httpx.AsyncClient(
-                    timeout=settings.provider_timeout_seconds
+        if client is None:
+            settings = get_settings()
+            client = httpx.AsyncClient(
+                timeout=settings.provider_timeout_seconds
+            )
+            owns_client = True
+
+        try:
+            response = await client.get(
+                f"{self._base_url}/{path.lstrip('/')}",
+                params=params,
+                headers=self._headers(),
+            )
+
+            if response.status_code >= 500:
+                raise DataProviderRetryableError(
+                    "News provider returned a transient server error."
                 )
-                owns_client = True
+
+            if response.status_code >= 400:
+                raise DataProviderUnavailableError(
+                    "News provider request was rejected."
+                )
 
             try:
-                response = await client.get(
-                    f"{self._base_url}/{path.lstrip('/')}",
-                    params=params,
-                    headers=self._headers(),
+                payload = response.json()
+            except ValueError as exc:
+                raise DataProviderResponseError(
+                    "News provider returned invalid JSON."
+                ) from exc
+
+            if isinstance(payload, dict):
+                items = payload.get(
+                    "articles",
+                    payload.get("results"),
                 )
 
-                if response.status_code >= 500:
-                    raise DataProviderRetryableError(
-                        "News provider returned a transient server error."
-                    )
-
-                if response.status_code >= 400:
-                    raise DataProviderUnavailableError(
-                        "News provider request was rejected."
-                    )
-
-                try:
-                    payload = response.json()
-                except ValueError as exc:
+                if items is None:
                     raise DataProviderResponseError(
-                        "News provider returned invalid JSON."
-                    ) from exc
-
-                if isinstance(payload, dict):
-                    items = payload.get("articles", payload.get("results"))
-
-                    if items is None:
-                        raise DataProviderResponseError(
-                            "News provider response has no article collection."
-                        )
-                elif isinstance(payload, list):
-                    items = payload
-                else:
-                    raise DataProviderResponseError(
-                        "News provider returned an invalid response shape."
+                        "News provider response has no article collection."
                     )
 
-                if not isinstance(items, list):
-                    raise DataProviderResponseError(
-                        "News provider article collection is invalid."
-                    )
+            elif isinstance(payload, list):
+                items = payload
 
-                return [
-                    self._normalize_record(item)
-                    for item in items
-                ]
+            else:
+                raise DataProviderResponseError(
+                    "News provider returned an invalid response shape."
+                )
 
-            except (
-                DataProviderRetryableError,
-                DataProviderUnavailableError,
-                DataProviderResponseError,
-            ):
-                raise
-            except httpx.TimeoutException as exc:
-                raise DataProviderUnavailableError(
-                    "News provider request timed out."
-                ) from exc
-            except httpx.RequestError as exc:
-                raise DataProviderUnavailableError(
-                    "News provider request could not be completed."
-                ) from exc
-            finally:
-                if owns_client:
-                    await client.aclose()
+            if not isinstance(items, list):
+                raise DataProviderResponseError(
+                    "News provider article collection is invalid."
+                )
 
-        return await run_provider_call(
-            fetch,
-            operation_name=f"{self.name}.{path}",
-        )
+            return [
+                self._normalize_record(item)
+                for item in items
+            ]
+
+        except (
+            DataProviderRetryableError,
+            DataProviderUnavailableError,
+            DataProviderResponseError,
+        ):
+            raise
+
+        except httpx.TimeoutException as exc:
+            raise DataProviderUnavailableError(
+                "News provider request timed out."
+            ) from exc
+
+        except httpx.RequestError as exc:
+            raise DataProviderUnavailableError(
+                "News provider request could not be completed."
+            ) from exc
+
+        finally:
+            if owns_client:
+                await client.aclose()
 
     async def search_news(
         self,
@@ -200,7 +210,9 @@ class HttpNewsProvider(NewsProvider):
         start_date: date | None = None,
         end_date: date | None = None,
     ) -> list[NewsRecord]:
-        params: dict[str, Any] = {"query": query}
+        params: dict[str, Any] = {
+            "query": query,
+        }
 
         if start_date is not None:
             params["start_date"] = start_date.isoformat()
