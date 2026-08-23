@@ -194,3 +194,48 @@ async def test_context_builder_returns_empty_context_without_evidence() -> None:
 
     assert context.request.question == "Analyse HDFCBANK."
     assert context.evidence == []
+
+
+@pytest.mark.asyncio
+async def test_context_builder_preserves_contextual_evidence() -> None:
+    builder = ResearchContextBuilder(EvidenceRetriever())
+
+    primary = make_evidence(
+        content="HDFCBANK revenue increased by 20%.",
+        symbol="HDFCBANK",
+    )
+
+    benchmark = Evidence(
+        evidence_type=EvidenceType.MARKET_DATA,
+        title="NIFTY 50 benchmark",
+        content="NIFTY 50 closed at 24800.",
+        source=EvidenceSource(
+            name="Benchmark Provider",
+            provider="test_provider",
+            retrieved_at=datetime(
+                2026,
+                8,
+                19,
+                tzinfo=timezone.utc,
+            ),
+        ),
+        symbol="^NSEI",
+        exchange="NSE",
+        confidence=1.0,
+    )
+
+    query = RetrievalQuery(
+        question="Analyse HDFCBANK.",
+        symbols=["HDFCBANK"],
+        exchange="NSE",
+    )
+
+    context = await builder.build(
+        query,
+        [primary, benchmark],
+        contextual_evidence=[benchmark],
+    )
+
+    assert len(context.evidence) == 2
+    assert context.evidence[0].symbol == "HDFCBANK"
+    assert context.evidence[1].symbol == "^NSEI"

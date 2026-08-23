@@ -121,6 +121,8 @@ class ResearchContextBuilder:
         self,
         query: RetrievalQuery,
         evidence: list[Evidence],
+        *,
+        contextual_evidence: list[Evidence] | None = None,
     ) -> ResearchContext:
         if not evidence:
             return ResearchContext(
@@ -144,6 +146,36 @@ class ResearchContextBuilder:
                 ranked.append(item)
 
         ranked = self._deduplicate(ranked)
+
+        if contextual_evidence:
+            ranked_keys = {
+                (
+                    item.evidence_type,
+                    item.symbol,
+                    item.exchange,
+                    item.title,
+                    item.content,
+                )
+                for item in ranked
+            }
+
+            contextual = [
+                item
+                for item in contextual_evidence
+                if (
+                    item.evidence_type,
+                    item.symbol,
+                    item.exchange,
+                    item.title,
+                    item.content,
+                )
+                not in ranked_keys
+            ]
+
+            ranked.extend(
+                self._deduplicate(contextual)
+            )
+
         ranked = self._apply_budget(ranked)
 
         context = ResearchContext(
