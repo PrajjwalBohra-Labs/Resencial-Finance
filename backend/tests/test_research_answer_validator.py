@@ -308,3 +308,75 @@ def test_validator_rejects_conflicting_dividend_yield() -> None:
         issue.code == "fundamental_number_conflict"
         for issue in result.issues
     )
+
+
+def test_validator_supports_mixed_evidence_context() -> None:
+    from backend.app.domain.evidence import (
+        Evidence,
+        EvidenceSource,
+        EvidenceType,
+    )
+
+    context = create_context()
+
+    context.evidence.extend(
+        [
+            Evidence(
+                evidence_type=EvidenceType.NEWS,
+                title="HDFC Bank news",
+                content="Company commentary was supplied.",
+                source=EvidenceSource(
+                    name="Test News",
+                    provider="test-news",
+                    retrieved_at=datetime.now(timezone.utc),
+                ),
+                symbol="HDFCBANK",
+                exchange="NSE",
+            ),
+            Evidence(
+                evidence_type=EvidenceType.FILING,
+                title="HDFC Bank filing",
+                content="Regulatory disclosure was supplied.",
+                source=EvidenceSource(
+                    name="Test Filing",
+                    provider="test-filings",
+                    retrieved_at=datetime.now(timezone.utc),
+                ),
+                symbol="HDFCBANK",
+                exchange="NSE",
+            ),
+            Evidence(
+                evidence_type=EvidenceType.MACRO,
+                title="Repo rate",
+                content="Repo rate: 6.5%.",
+                source=EvidenceSource(
+                    name="Test Macro",
+                    provider="test-macro",
+                    retrieved_at=datetime.now(timezone.utc),
+                ),
+            ),
+            Evidence(
+                evidence_type=EvidenceType.REGULATORY,
+                title="Government bond",
+                content="Yield: 6.8%.",
+                source=EvidenceSource(
+                    name="Test Bonds",
+                    provider="test-bonds",
+                    retrieved_at=datetime.now(timezone.utc),
+                ),
+            ),
+        ]
+    )
+
+    result = ResearchAnswerValidator().validate(
+        context=context,
+        answer=(
+            "The supplied evidence includes market observations, "
+            "company news, filings, macro observations, and bond data. "
+            "The supplied evidence does not establish a causal explanation "
+            "for the observed market movement."
+        ),
+    )
+
+    assert result.status == ResearchValidationStatus.PASSED
+    assert result.issues == []

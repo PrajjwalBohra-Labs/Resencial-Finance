@@ -20,6 +20,10 @@ class Settings(BaseSettings):
 
     provider_timeout_seconds: float = 15.0
 
+    news_provider: str = "http_news"
+    news_api_base_url: str = ""
+    news_api_key: str = ""
+
     # Canonical provider resilience configuration.
     provider_max_attempts: int = 3
     provider_retry_initial_delay_seconds: float = 0.25

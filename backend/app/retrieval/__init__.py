@@ -1,4 +1,6 @@
-﻿from backend.app.retrieval.context_builder import ResearchContextBuilder
+﻿from backend.app.retrieval.research_context_builder import (
+    ResearchContextBuilder,
+)
 from backend.app.retrieval.models import (
     EvidenceChunk,
     RetrievalQuery,

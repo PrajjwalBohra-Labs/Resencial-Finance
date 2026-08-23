@@ -113,3 +113,94 @@ def test_prompt_builder_includes_source_url_when_available() -> None:
     _, user_prompt = builder.build(context)
 
     assert "https://example.com/source" in user_prompt
+
+
+def test_prompt_builder_includes_mixed_evidence_sources() -> None:
+    from datetime import datetime, timezone
+
+    from backend.app.domain.evidence import (
+        Evidence,
+        EvidenceSource,
+        EvidenceType,
+    )
+    from backend.app.domain.research import (
+        ResearchContext,
+        ResearchRequest,
+    )
+
+    now = datetime.now(timezone.utc)
+
+    def source(name: str, provider: str) -> EvidenceSource:
+        return EvidenceSource(
+            name=name,
+            provider=provider,
+            retrieved_at=now,
+        )
+
+    context = ResearchContext(
+        request=ResearchRequest(
+            question="Assess HDFC Bank using all available evidence.",
+            symbols=["HDFCBANK"],
+            exchange="NSE",
+        ),
+        evidence=[
+            Evidence(
+                evidence_type=EvidenceType.MARKET_DATA,
+                title="HDFC Bank market history",
+                content="HDFCBANK closed at 755 on 2026-08-11.",
+                source=source("Yahoo Finance", "yahoo_finance"),
+                symbol="HDFCBANK",
+                exchange="NSE",
+            ),
+            Evidence(
+                evidence_type=EvidenceType.NEWS,
+                title="HDFC Bank news",
+                content="The supplied news record contains company commentary.",
+                source=source("Test News", "test-news"),
+                symbol="HDFCBANK",
+                exchange="NSE",
+            ),
+            Evidence(
+                evidence_type=EvidenceType.FILING,
+                title="HDFC Bank annual filing",
+                content="The supplied filing contains regulatory disclosures.",
+                source=source("Test Filing", "test-filings"),
+                symbol="HDFCBANK",
+                exchange="NSE",
+            ),
+            Evidence(
+                evidence_type=EvidenceType.MACRO,
+                title="Repo rate",
+                content="Repo rate observation: 6.5 percent.",
+                source=source("Test Macro", "test-macro"),
+            ),
+            Evidence(
+                evidence_type=EvidenceType.REGULATORY,
+                title="Government bond",
+                content="Government bond yield: 6.8%.",
+                source=source("Test Bonds", "test-bonds"),
+            ),
+        ],
+    )
+
+    system_prompt, user_prompt = ResearchPromptBuilder().build(context)
+
+    assert "type=market_data" in user_prompt
+    assert "type=news" in user_prompt
+    assert "type=filing" in user_prompt
+    assert "type=macro" in user_prompt
+    assert "type=regulatory" in user_prompt
+
+    assert "HDFC Bank market history" in user_prompt
+    assert "HDFC Bank news" in user_prompt
+    assert "HDFC Bank annual filing" in user_prompt
+    assert "Repo rate" in user_prompt
+    assert "Government bond" in user_prompt
+
+    assert "source_name=Yahoo Finance" in user_prompt
+    assert "provider=test-news" in user_prompt
+    assert "provider=test-filings" in user_prompt
+    assert "provider=test-macro" in user_prompt
+    assert "provider=test-bonds" in user_prompt
+
+    assert "You are Resencial Finance" in system_prompt
