@@ -121,3 +121,90 @@ def test_research_endpoint_rejects_invalid_date_range() -> None:
 
     assert response.status_code == 422
 
+
+from unittest.mock import AsyncMock
+
+import pytest
+
+from backend.app.core.exceptions import (
+    DataProviderError,
+    DataProviderResponseError,
+    DataProviderUnavailableError,
+    LLMProviderError,
+)
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        DataProviderError("provider failed"),
+        DataProviderResponseError("invalid provider response"),
+        DataProviderUnavailableError("provider unavailable"),
+    ],
+)
+def test_research_endpoint_maps_data_provider_errors_to_503(
+    error,
+) -> None:
+    fake = FakeResearchOrchestrator()
+    fake.research = AsyncMock(side_effect=error)
+
+    app.dependency_overrides[get_research_orchestrator] = (
+        lambda: fake
+    )
+
+    try:
+        client = TestClient(app)
+
+        response = client.post(
+            "/api/research",
+            json={
+                "question": "Analyse HDFC Bank.",
+                "symbols": ["HDFCBANK"],
+                "exchange": "NSE",
+                "focus": "market",
+                "start_date": "2026-08-10",
+                "end_date": "2026-08-11",
+            },
+        )
+
+        assert response.status_code == 503
+        assert response.json()["detail"] == (
+            "Market data provider is temporarily unavailable."
+        )
+
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_research_endpoint_maps_llm_provider_error_to_503() -> None:
+    fake = FakeResearchOrchestrator()
+    fake.research = AsyncMock(
+        side_effect=LLMProviderError("llm unavailable")
+    )
+
+    app.dependency_overrides[get_research_orchestrator] = (
+        lambda: fake
+    )
+
+    try:
+        client = TestClient(app)
+
+        response = client.post(
+            "/api/research",
+            json={
+                "question": "Analyse HDFC Bank.",
+                "symbols": ["HDFCBANK"],
+                "exchange": "NSE",
+                "focus": "market",
+                "start_date": "2026-08-10",
+                "end_date": "2026-08-11",
+            },
+        )
+
+        assert response.status_code == 503
+        assert response.json()["detail"] == (
+            "Research model provider is temporarily unavailable."
+        )
+
+    finally:
+        app.dependency_overrides.clear()
