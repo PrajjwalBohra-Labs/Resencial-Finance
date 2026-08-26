@@ -1,6 +1,7 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import asyncio
+import logging
 from collections.abc import Callable
 from typing import TypeVar
 
@@ -15,6 +16,8 @@ from backend.app.core.provider_retry import (
 )
 
 
+logger = logging.getLogger(__name__)
+
 T = TypeVar("T")
 
 
@@ -25,11 +28,7 @@ async def run_provider_call(
     timeout_seconds: float | None = None,
     retry_policy: ProviderRetryPolicy | RetryPolicy | None = None,
 ) -> T:
-    """Execute a blocking provider operation with bounded retries.
-
-    Retry decisions are driven exclusively by domain-level retryable
-    exceptions. All other exceptions propagate immediately.
-    """
+    """Execute a blocking provider operation with bounded retries."""
 
     settings = get_settings()
 
@@ -48,12 +47,27 @@ async def run_provider_call(
         else retry_policy
     )
 
+    logger.info(
+        "provider_call_started operation=%s max_attempts=%s timeout_seconds=%s",
+        operation_name,
+        policy.max_attempts,
+        timeout,
+    )
+
     for attempt in range(policy.max_retries + 1):
         try:
-            return await asyncio.wait_for(
+            result = await asyncio.wait_for(
                 asyncio.to_thread(operation),
                 timeout=timeout,
             )
+
+            logger.info(
+                "provider_call_succeeded operation=%s attempt=%s",
+                operation_name,
+                attempt + 1,
+            )
+
+            return result
 
         except asyncio.TimeoutError as exc:
             error = DataProviderUnavailableError(
@@ -63,18 +77,54 @@ async def run_provider_call(
             )
 
             if not policy.should_retry(attempt):
+                logger.error(
+                    "provider_call_failed operation=%s attempt=%s "
+                    "reason=timeout",
+                    operation_name,
+                    attempt + 1,
+                )
                 raise error from exc
 
-            await asyncio.sleep(policy.delay_for(attempt))
+            delay = policy.delay_for(attempt)
+
+            logger.warning(
+                "provider_call_retry operation=%s attempt=%s "
+                "reason=timeout delay_seconds=%s",
+                operation_name,
+                attempt + 1,
+                delay,
+            )
+
+            await asyncio.sleep(delay)
 
         except DataProviderRetryableError:
             if not policy.should_retry(attempt):
+                logger.error(
+                    "provider_call_failed operation=%s attempt=%s "
+                    "reason=retryable_error",
+                    operation_name,
+                    attempt + 1,
+                )
                 raise
 
-            await asyncio.sleep(policy.delay_for(attempt))
+            delay = policy.delay_for(attempt)
+
+            logger.warning(
+                "provider_call_retry operation=%s attempt=%s "
+                "reason=retryable_error delay_seconds=%s",
+                operation_name,
+                attempt + 1,
+                delay,
+            )
+
+            await asyncio.sleep(delay)
+
+    logger.error(
+        "provider_call_failed operation=%s reason=retry_policy_exhausted",
+        operation_name,
+    )
 
     raise RuntimeError(
         f"Provider operation '{operation_name}' "
         "exhausted its retry policy unexpectedly."
     )
-
