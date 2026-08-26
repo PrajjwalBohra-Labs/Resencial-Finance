@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import asyncio
 import logging
@@ -16,9 +16,9 @@ from backend.app.core.provider_retry import (
 )
 
 
-logger = logging.getLogger(__name__)
-
 T = TypeVar("T")
+
+logger = logging.getLogger(__name__)
 
 
 async def run_provider_call(
@@ -52,13 +52,11 @@ async def run_provider_call(
     )
 
     for attempt in range(policy.max_retries + 1):
-        operation_task = asyncio.create_task(
-            asyncio.to_thread(operation)
-        )
+        worker = asyncio.to_thread(operation)
 
         try:
             result = await asyncio.wait_for(
-                operation_task,
+                worker,
                 timeout=timeout,
             )
 
@@ -73,17 +71,8 @@ async def run_provider_call(
             return result
 
         except asyncio.TimeoutError as exc:
-            if not operation_task.done():
-                operation_task.cancel()
-
-            logger.warning(
-                "Provider operation timed out.",
-                extra={
-                    "operation_name": operation_name,
-                    "attempt": attempt + 1,
-                    "timeout_seconds": timeout,
-                },
-            )
+            if hasattr(worker, "close"):
+                worker.close()
 
             error = DataProviderUnavailableError(
                 f"Provider operation '{operation_name}' "
@@ -93,58 +82,57 @@ async def run_provider_call(
 
             if not policy.should_retry(attempt):
                 logger.error(
-                    "Provider operation failed after timeout.",
+                    "Provider operation timed out.",
                     extra={
                         "operation_name": operation_name,
                         "attempt": attempt + 1,
+                        "timeout_seconds": timeout,
                     },
+                    exc_info=True,
                 )
                 raise error from exc
 
-            logger.info(
-                "Retrying provider operation after timeout.",
+            logger.warning(
+                "Provider operation timed out; retrying.",
                 extra={
                     "operation_name": operation_name,
                     "attempt": attempt + 1,
                     "next_attempt": attempt + 2,
-                    "delay_seconds": policy.delay_for(attempt),
+                    "timeout_seconds": timeout,
                 },
             )
 
             await asyncio.sleep(policy.delay_for(attempt))
 
-        except DataProviderRetryableError:
-            if not operation_task.done():
-                operation_task.cancel()
+        except DataProviderRetryableError as exc:
+            logger.warning(
+                "Provider operation failed with retryable error; retrying."
+                if policy.should_retry(attempt)
+                else "Provider operation failed after retryable error.",
+                extra={
+                    "operation_name": operation_name,
+                    "attempt": attempt + 1,
+                    "next_attempt": (
+                        attempt + 2
+                        if policy.should_retry(attempt)
+                        else None
+                    ),
+                    "error_type": type(exc).__name__,
+                },
+            )
 
             if not policy.should_retry(attempt):
                 logger.error(
-                    "Provider operation exhausted retries.",
+                    "Provider operation exhausted retry policy.",
                     extra={
                         "operation_name": operation_name,
                         "attempt": attempt + 1,
                     },
+                    exc_info=True,
                 )
                 raise
 
-            delay = policy.delay_for(attempt)
-
-            logger.warning(
-                "Retryable provider failure; retrying.",
-                extra={
-                    "operation_name": operation_name,
-                    "attempt": attempt + 1,
-                    "next_attempt": attempt + 2,
-                    "delay_seconds": delay,
-                },
-            )
-
-            await asyncio.sleep(delay)
-
-        except BaseException:
-            if not operation_task.done():
-                operation_task.cancel()
-            raise
+            await asyncio.sleep(policy.delay_for(attempt))
 
     raise RuntimeError(
         f"Provider operation '{operation_name}' "
